@@ -14,7 +14,13 @@
           "meal_entity": "Meal plan helper",
           "background": "Background",
           "background_url": "Background image URL (used with Custom)",
-          "layout": "Layout"
+          "layout": "Layout",
+          "lights_tab_enabled": "Enable Lights tab",
+          "light_entities": "Controllable lights",
+          "scenes_tab_enabled": "Enable Scenes tab",
+          "scene_entities": "Controllable scenes and scripts",
+          "climate_tab_enabled": "Enable Climate tab",
+          "climate_entities": "Controllable climate entities"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
@@ -24,7 +30,13 @@
           "forecast_count": "How many forecast cards the Roku should display.",
           "calendar_entities": "Only events from the selected calendars are shown on the Home tab. Leave empty to show all calendars.",
           "meal_entity": "Text helper shown in the meal-plan panel. 'Create new helper' makes input_text.roku_dashboard_meal_plan for you.",
-          "background_url": "Any image URL Home Assistant can reach, e.g. /local/fall.jpg"
+          "background_url": "Any image URL Home Assistant can reach, e.g. /local/fall.jpg",
+          "lights_tab_enabled": "Adds the Lights control tab to Roku.",
+          "light_entities": "Only selected lights can be controlled from Roku.",
+          "scenes_tab_enabled": "Adds the Scenes control tab to Roku.",
+          "scene_entities": "Only selected scenes and scripts can be activated from Roku.",
+          "climate_tab_enabled": "Adds the Climate control tab to Roku.",
+          "climate_entities": "Only selected thermostats can be controlled from Roku."
         }
       },
       "init": {
@@ -40,7 +52,13 @@
           "meal_entity": "Meal plan helper",
           "background": "Background",
           "background_url": "Background image URL (used with Custom)",
-          "layout": "Layout"
+          "layout": "Layout",
+          "lights_tab_enabled": "Enable Lights tab",
+          "light_entities": "Controllable lights",
+          "scenes_tab_enabled": "Enable Scenes tab",
+          "scene_entities": "Controllable scenes and scripts",
+          "climate_tab_enabled": "Enable Climate tab",
+          "climate_entities": "Controllable climate entities"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
@@ -50,7 +68,13 @@
           "forecast_count": "How many forecast cards the Roku should display.",
           "calendar_entities": "Only events from the selected calendars are shown on the Home tab. Leave empty to show all calendars.",
           "meal_entity": "Text helper shown in the meal-plan panel.",
-          "background_url": "Any image URL Home Assistant can reach, e.g. /local/fall.jpg"
+          "background_url": "Any image URL Home Assistant can reach, e.g. /local/fall.jpg",
+          "lights_tab_enabled": "Adds the Lights control tab to Roku.",
+          "light_entities": "Only selected lights can be controlled from Roku.",
+          "scenes_tab_enabled": "Adds the Scenes control tab to Roku.",
+          "scene_entities": "Only selected scenes and scripts can be activated from Roku.",
+          "climate_tab_enabled": "Adds the Climate control tab to Roku.",
+          "climate_entities": "Only selected thermostats can be controlled from Roku."
         }
       }
     },

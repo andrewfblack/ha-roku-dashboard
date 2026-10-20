@@ -12,6 +12,9 @@ Dashboard" channel from inside Home Assistant:
 - 🌤️ **Pick the outdoor weather entity** (optional — auto-detects `weather.*`).
 - 🌦️ **Configure the Weather tab** — enable/disable it, choose daily or
   hourly forecasts, and show 3–8 forecast periods.
+- 💡 **Lights tab** — explicitly select which lights Roku may toggle and dim.
+- 🎬 **Scenes tab** — explicitly select scenes/scripts Roku may activate.
+- 🌡️ **Climate tab** — explicitly select thermostats Roku may adjust.
 - 📅 **Pick which calendars to display** — select one or more calendar
   entities; only their events show on the Home tab. Leave empty to show all.
   The API provides today's agenda plus a full current-month overview.
@@ -88,6 +91,8 @@ The companion Roku channel lives at
 It connects using the `pairing_code` attribute shown on
 `sensor.roku_dashboard_config`; no long-lived HA token is required on the TV.
 The integration's local endpoint returns only the configured dashboard data.
+Control requests are allowlisted: commands targeting an entity that was not
+selected in the integration options are rejected.
 
 - queries **only the selected calendars**,
 - uses the configured **meal entity**,

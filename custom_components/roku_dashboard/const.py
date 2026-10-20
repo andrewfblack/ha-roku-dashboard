@@ -9,9 +9,16 @@ CONF_BACKGROUND = "background"
 CONF_LAYOUT = "layout"
 CONF_CALENDAR_ENTITIES = "calendar_entities"
 CONF_PAIRING_CODE = "pairing_code"
+CONF_DEVICE_TOKEN = "device_token"
 CONF_WEATHER_TAB_ENABLED = "weather_tab_enabled"
 CONF_FORECAST_TYPE = "forecast_type"
 CONF_FORECAST_COUNT = "forecast_count"
+CONF_LIGHTS_TAB_ENABLED = "lights_tab_enabled"
+CONF_LIGHT_ENTITIES = "light_entities"
+CONF_SCENES_TAB_ENABLED = "scenes_tab_enabled"
+CONF_SCENE_ENTITIES = "scene_entities"
+CONF_CLIMATE_TAB_ENABLED = "climate_tab_enabled"
+CONF_CLIMATE_ENTITIES = "climate_entities"
 
 FORECAST_TYPES = {
     "daily": "Daily forecast",

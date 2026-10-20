@@ -22,6 +22,7 @@ from homeassistant.helpers.storage import Store
 from .const import (
     CONF_MEAL_ENTITY,
     CONF_PAIRING_CODE,
+    CONF_DEVICE_TOKEN,
     DOMAIN,
     MEAL_HELPER_ENTITY,
     MEAL_HELPER_KEY,
@@ -51,6 +52,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not entry.data.get(CONF_PAIRING_CODE):
         data = dict(entry.data)
         data[CONF_PAIRING_CODE] = secrets.token_hex(4).upper()
+        hass.config_entries.async_update_entry(entry, data=data)
+    if not entry.data.get(CONF_DEVICE_TOKEN):
+        data = dict(entry.data)
+        data[CONF_DEVICE_TOKEN] = secrets.token_hex(32).upper()
         hass.config_entries.async_update_entry(entry, data=data)
 
     store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)

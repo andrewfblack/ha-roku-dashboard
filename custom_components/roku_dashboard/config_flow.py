@@ -33,6 +33,12 @@ from .const import (
     CONF_WEATHER_TAB_ENABLED,
     CONF_FORECAST_TYPE,
     CONF_FORECAST_COUNT,
+    CONF_LIGHTS_TAB_ENABLED,
+    CONF_LIGHT_ENTITIES,
+    CONF_SCENES_TAB_ENABLED,
+    CONF_SCENE_ENTITIES,
+    CONF_CLIMATE_TAB_ENABLED,
+    CONF_CLIMATE_ENTITIES,
     CREATE_NEW_MEAL_HELPER,
     DOMAIN,
     LAYOUTS,
@@ -71,6 +77,13 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
     )
     calendars = EntitySelector(
         EntitySelectorConfig(domain=["calendar"], multiple=True)
+    )
+    lights = EntitySelector(EntitySelectorConfig(domain=["light"], multiple=True))
+    scenes = EntitySelector(
+        EntitySelectorConfig(domain=["scene", "script"], multiple=True)
+    )
+    climates = EntitySelector(
+        EntitySelectorConfig(domain=["climate"], multiple=True)
     )
     meal = SelectSelector(
         SelectSelectorConfig(
@@ -118,6 +131,30 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
             CONF_FORECAST_COUNT,
             default=defaults.get(CONF_FORECAST_COUNT, 5),
         ): vol.All(vol.Coerce(int), vol.Range(min=3, max=8)),
+        vol.Required(
+            CONF_LIGHTS_TAB_ENABLED,
+            default=defaults.get(CONF_LIGHTS_TAB_ENABLED, True),
+        ): bool,
+        vol.Optional(
+            CONF_LIGHT_ENTITIES,
+            default=defaults.get(CONF_LIGHT_ENTITIES, vol.UNDEFINED),
+        ): lights,
+        vol.Required(
+            CONF_SCENES_TAB_ENABLED,
+            default=defaults.get(CONF_SCENES_TAB_ENABLED, True),
+        ): bool,
+        vol.Optional(
+            CONF_SCENE_ENTITIES,
+            default=defaults.get(CONF_SCENE_ENTITIES, vol.UNDEFINED),
+        ): scenes,
+        vol.Required(
+            CONF_CLIMATE_TAB_ENABLED,
+            default=defaults.get(CONF_CLIMATE_TAB_ENABLED, True),
+        ): bool,
+        vol.Optional(
+            CONF_CLIMATE_ENTITIES,
+            default=defaults.get(CONF_CLIMATE_ENTITIES, vol.UNDEFINED),
+        ): climates,
         vol.Optional(
             CONF_CALENDAR_ENTITIES,
             default=defaults.get(CONF_CALENDAR_ENTITIES, vol.UNDEFINED),

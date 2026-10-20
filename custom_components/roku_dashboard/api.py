@@ -20,9 +20,16 @@ from .const import (
     CONF_MEAL_ENTITY,
     CONF_OUTDOOR_ENTITY,
     CONF_PAIRING_CODE,
+    CONF_DEVICE_TOKEN,
     CONF_WEATHER_TAB_ENABLED,
     CONF_FORECAST_TYPE,
     CONF_FORECAST_COUNT,
+    CONF_LIGHTS_TAB_ENABLED,
+    CONF_LIGHT_ENTITIES,
+    CONF_SCENES_TAB_ENABLED,
+    CONF_SCENE_ENTITIES,
+    CONF_CLIMATE_TAB_ENABLED,
+    CONF_CLIMATE_ENTITIES,
     DOMAIN,
 )
 
@@ -40,16 +47,7 @@ class RokuDashboardView(HomeAssistantView):
         self.hass = hass
 
     async def get(self, request, code: str):
-        entry = next(
-            (
-                item
-                for item in self.hass.config_entries.async_entries(DOMAIN)
-                if secrets.compare_digest(
-                    str(item.data.get(CONF_PAIRING_CODE, "")), code.upper()
-                )
-            ),
-            None,
-        )
+        entry = self._entry_for_code(code)
         if entry is None:
             return self.json({"error": "invalid_pairing_code"}, status_code=401)
 
@@ -77,8 +75,10 @@ class RokuDashboardView(HomeAssistantView):
 
         events, month = await self._calendar_data(calendars)
         weather = await self._weather_data(outdoor, options)
-        return self.json(
-            {
+        lights = self._entity_cards(options.get(CONF_LIGHT_ENTITIES, []))
+        scenes = self._entity_cards(options.get(CONF_SCENE_ENTITIES, []))
+        climates = self._climate_cards(options.get(CONF_CLIMATE_ENTITIES, []))
+        payload = {
                 "ok": True,
                 "states": states,
                 "resolved_entities": {"inside": indoor, "outside": outdoor},
@@ -89,8 +89,146 @@ class RokuDashboardView(HomeAssistantView):
                 "background_url": options.get(CONF_BACKGROUND_URL, ""),
                 "layout": options.get(CONF_LAYOUT, "home"),
                 "weather": weather,
+                "tabs": {
+                    "weather": options.get(CONF_WEATHER_TAB_ENABLED, True),
+                    "lights": options.get(CONF_LIGHTS_TAB_ENABLED, True),
+                    "scenes": options.get(CONF_SCENES_TAB_ENABLED, True),
+                    "climate": options.get(CONF_CLIMATE_TAB_ENABLED, True),
+                },
+                "lights": lights,
+                "scenes": scenes,
+                "climates": climates,
             }
+        # Exchange the human-friendly code once for a strong device token,
+        # then rotate the short code. Control POSTs never accept short codes.
+        if secrets.compare_digest(
+            str(entry.data.get(CONF_PAIRING_CODE, "")), code.upper()
+        ):
+            payload["device_token"] = entry.data[CONF_DEVICE_TOKEN]
+            data = dict(entry.data)
+            data[CONF_PAIRING_CODE] = secrets.token_hex(4).upper()
+            self.hass.config_entries.async_update_entry(entry, data=data)
+        return self.json(payload)
+
+    def _entry_for_code(self, code: str):
+        return next(
+            (
+                item
+                for item in self.hass.config_entries.async_entries(DOMAIN)
+                if secrets.compare_digest(
+                    str(item.data.get(CONF_PAIRING_CODE, "")), code.upper()
+                )
+                or secrets.compare_digest(
+                    str(item.data.get(CONF_DEVICE_TOKEN, "")), code.upper()
+                )
+            ),
+            None,
         )
+
+    @staticmethod
+    def _as_list(value: Any) -> list[str]:
+        if isinstance(value, str):
+            return [value]
+        return list(value or [])
+
+    def _entity_cards(self, configured: Any) -> list[dict[str, Any]]:
+        cards: list[dict[str, Any]] = []
+        for entity_id in self._as_list(configured):
+            state = self.hass.states.get(entity_id)
+            if state is None:
+                continue
+            cards.append(
+                {
+                    "entity_id": entity_id,
+                    "name": state.attributes.get("friendly_name", entity_id),
+                    "state": state.state,
+                    "brightness": state.attributes.get("brightness"),
+                    "color_temp_kelvin": state.attributes.get("color_temp_kelvin"),
+                }
+            )
+        return cards
+
+    def _climate_cards(self, configured: Any) -> list[dict[str, Any]]:
+        cards: list[dict[str, Any]] = []
+        for entity_id in self._as_list(configured):
+            state = self.hass.states.get(entity_id)
+            if state is None:
+                continue
+            attrs = state.attributes
+            cards.append(
+                {
+                    "entity_id": entity_id,
+                    "name": attrs.get("friendly_name", entity_id),
+                    "state": state.state,
+                    "current_temperature": attrs.get("current_temperature"),
+                    "temperature": attrs.get("temperature"),
+                    "target_temp_low": attrs.get("target_temp_low"),
+                    "target_temp_high": attrs.get("target_temp_high"),
+                    "humidity": attrs.get("humidity"),
+                    "hvac_action": attrs.get("hvac_action"),
+                    "hvac_modes": attrs.get("hvac_modes", []),
+                    "min_temp": attrs.get("min_temp"),
+                    "max_temp": attrs.get("max_temp"),
+                    "target_temp_step": attrs.get("target_temp_step", 1),
+                }
+            )
+        return cards
+
+    async def post(self, request, code: str):
+        """Execute an allowlisted dashboard command."""
+        entry = self._entry_for_code(code)
+        if entry is None:
+            return self.json({"error": "invalid_pairing_code"}, status_code=401)
+        if not secrets.compare_digest(
+            str(entry.data.get(CONF_DEVICE_TOKEN, "")), code.upper()
+        ):
+            return self.json({"error": "pairing_required"}, status_code=403)
+        try:
+            body = await request.json()
+        except Exception:
+            return self.json({"error": "invalid_json"}, status_code=400)
+
+        action = str(body.get("action", ""))
+        entity_id = str(body.get("entity_id", ""))
+        options = entry.options
+        lights = self._as_list(options.get(CONF_LIGHT_ENTITIES, []))
+        scenes = self._as_list(options.get(CONF_SCENE_ENTITIES, []))
+        climates = self._as_list(options.get(CONF_CLIMATE_ENTITIES, []))
+
+        domain = ""
+        service = ""
+        data: dict[str, Any] = {"entity_id": entity_id}
+        if action == "light_toggle" and entity_id in lights:
+            domain, service = "light", "toggle"
+        elif action == "light_brightness" and entity_id in lights:
+            domain, service = "light", "turn_on"
+            data["brightness_pct"] = max(1, min(100, int(body.get("value", 100))))
+        elif action == "scene_activate" and entity_id in scenes:
+            domain = entity_id.split(".", 1)[0]
+            if domain not in ("scene", "script"):
+                return self.json({"error": "not_allowed"}, status_code=403)
+            service = "turn_on"
+        elif action == "climate_temperature" and entity_id in climates:
+            domain, service = "climate", "set_temperature"
+            data["temperature"] = float(body.get("value"))
+        elif action == "climate_mode" and entity_id in climates:
+            state = self.hass.states.get(entity_id)
+            mode = str(body.get("value", ""))
+            if state is None or mode not in state.attributes.get("hvac_modes", []):
+                return self.json({"error": "invalid_mode"}, status_code=400)
+            domain, service = "climate", "set_hvac_mode"
+            data["hvac_mode"] = mode
+        else:
+            return self.json({"error": "not_allowed"}, status_code=403)
+
+        try:
+            await self.hass.services.async_call(
+                domain, service, data, blocking=True
+            )
+        except Exception:
+            _LOGGER.exception("Roku dashboard command failed")
+            return self.json({"error": "service_failed"}, status_code=500)
+        return self.json({"ok": True})
 
     async def _weather_data(
         self, entity_id: str, options: dict[str, Any]
