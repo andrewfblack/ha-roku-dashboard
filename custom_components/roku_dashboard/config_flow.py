@@ -30,9 +30,13 @@ from .const import (
     CONF_LAYOUT,
     CONF_MEAL_ENTITY,
     CONF_OUTDOOR_ENTITY,
+    CONF_WEATHER_TAB_ENABLED,
+    CONF_FORECAST_TYPE,
+    CONF_FORECAST_COUNT,
     CREATE_NEW_MEAL_HELPER,
     DOMAIN,
     LAYOUTS,
+    FORECAST_TYPES,
     MEAL_HELPER_ENTITY,
 )
 
@@ -86,6 +90,12 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
             mode=SelectSelectorMode.DROPDOWN,
         )
     )
+    forecast_type = SelectSelector(
+        SelectSelectorConfig(
+            options=[{"value": k, "label": v} for k, v in FORECAST_TYPES.items()],
+            mode=SelectSelectorMode.DROPDOWN,
+        )
+    )
 
     schema: dict[Any, Any] = {
         vol.Required(
@@ -96,6 +106,18 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
             CONF_OUTDOOR_ENTITY,
             default=defaults.get(CONF_OUTDOOR_ENTITY, vol.UNDEFINED),
         ): outdoor,
+        vol.Required(
+            CONF_WEATHER_TAB_ENABLED,
+            default=defaults.get(CONF_WEATHER_TAB_ENABLED, True),
+        ): bool,
+        vol.Required(
+            CONF_FORECAST_TYPE,
+            default=defaults.get(CONF_FORECAST_TYPE, "daily"),
+        ): forecast_type,
+        vol.Required(
+            CONF_FORECAST_COUNT,
+            default=defaults.get(CONF_FORECAST_COUNT, 5),
+        ): vol.All(vol.Coerce(int), vol.Range(min=3, max=8)),
         vol.Optional(
             CONF_CALENDAR_ENTITIES,
             default=defaults.get(CONF_CALENDAR_ENTITIES, vol.UNDEFINED),

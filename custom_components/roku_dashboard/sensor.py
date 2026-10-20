@@ -23,6 +23,9 @@ from .const import (
     CONF_MEAL_ENTITY,
     CONF_OUTDOOR_ENTITY,
     CONF_PAIRING_CODE,
+    CONF_WEATHER_TAB_ENABLED,
+    CONF_FORECAST_TYPE,
+    CONF_FORECAST_COUNT,
     DOMAIN,
 )
 
@@ -86,6 +89,9 @@ class RokuDashboardConfigSensor(Entity):
             "pairing_code": self._entry.data.get(CONF_PAIRING_CODE, ""),
             "indoor_entity": indoor,
             "outdoor_entity": outdoor,
+            "weather_tab_enabled": options.get(CONF_WEATHER_TAB_ENABLED, True),
+            "forecast_type": options.get(CONF_FORECAST_TYPE, "daily"),
+            "forecast_count": options.get(CONF_FORECAST_COUNT, 5),
             "meal_entity": meal,
             "calendar_entities": [c for c in calendars if c],
             "background": background,

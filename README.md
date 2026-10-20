@@ -10,6 +10,8 @@ Dashboard" channel from inside Home Assistant:
 - 🌡️ **Pick the indoor sensor** — choose which temperature sensor (or
   climate entity) the TV shows as "Inside".
 - 🌤️ **Pick the outdoor weather entity** (optional — auto-detects `weather.*`).
+- 🌦️ **Configure the Weather tab** — enable/disable it, choose daily or
+  hourly forecasts, and show 3–8 forecast periods.
 - 📅 **Pick which calendars to display** — select one or more calendar
   entities; only their events show on the Home tab. Leave empty to show all.
   The API provides today's agenda plus a full current-month overview.

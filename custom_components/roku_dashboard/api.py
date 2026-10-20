@@ -20,6 +20,9 @@ from .const import (
     CONF_MEAL_ENTITY,
     CONF_OUTDOOR_ENTITY,
     CONF_PAIRING_CODE,
+    CONF_WEATHER_TAB_ENABLED,
+    CONF_FORECAST_TYPE,
+    CONF_FORECAST_COUNT,
     DOMAIN,
 )
 
@@ -73,6 +76,7 @@ class RokuDashboardView(HomeAssistantView):
             meal_plan = meal_state.state
 
         events, month = await self._calendar_data(calendars)
+        weather = await self._weather_data(outdoor, options)
         return self.json(
             {
                 "ok": True,
@@ -84,8 +88,65 @@ class RokuDashboardView(HomeAssistantView):
                 "background": options.get(CONF_BACKGROUND, "fall"),
                 "background_url": options.get(CONF_BACKGROUND_URL, ""),
                 "layout": options.get(CONF_LAYOUT, "home"),
+                "weather": weather,
             }
         )
+
+    async def _weather_data(
+        self, entity_id: str, options: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Return current conditions and a normalized HA forecast."""
+        if not options.get(CONF_WEATHER_TAB_ENABLED, True):
+            return {"enabled": False}
+        state = self.hass.states.get(entity_id) if entity_id else None
+        if state is None:
+            return {"enabled": True, "available": False, "forecast": []}
+
+        forecast_type = options.get(CONF_FORECAST_TYPE, "daily")
+        count = options.get(CONF_FORECAST_COUNT, 5)
+        forecasts: list[dict[str, Any]] = []
+        try:
+            response = await self.hass.services.async_call(
+                "weather",
+                "get_forecasts",
+                {"entity_id": entity_id, "type": forecast_type},
+                blocking=True,
+                return_response=True,
+            )
+            raw_items = (response or {}).get(entity_id, {}).get("forecast", [])
+            for item in raw_items[:count]:
+                forecasts.append(
+                    {
+                        "datetime": item.get("datetime", ""),
+                        "condition": item.get("condition", "unknown"),
+                        "temperature": item.get("temperature"),
+                        "templow": item.get("templow"),
+                        "precipitation_probability": item.get(
+                            "precipitation_probability"
+                        ),
+                        "wind_speed": item.get("wind_speed"),
+                    }
+                )
+        except Exception:
+            _LOGGER.exception("Unable to fetch Roku dashboard weather forecast")
+
+        attrs = state.attributes
+        return {
+            "enabled": True,
+            "available": state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE),
+            "entity_id": entity_id,
+            "name": attrs.get("friendly_name", "Weather"),
+            "condition": state.state,
+            "temperature": attrs.get("temperature"),
+            "temperature_unit": attrs.get("temperature_unit", ""),
+            "humidity": attrs.get("humidity"),
+            "pressure": attrs.get("pressure"),
+            "wind_speed": attrs.get("wind_speed"),
+            "wind_bearing": attrs.get("wind_bearing"),
+            "visibility": attrs.get("visibility"),
+            "forecast_type": forecast_type,
+            "forecast": forecasts,
+        }
 
     async def _calendar_data(
         self, calendars: list[str]
