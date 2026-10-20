@@ -53,8 +53,14 @@ Copy `custom_components/roku_dashboard/` into your HA config directory's
    - **Meal plan helper** — "Create new helper" (default) or pick an
      existing `input_text`/`text` helper.
    - **Background** / **Layout** — presets for the Roku channel.
-3. Change anything later via the integration's **Configure** (options) flow —
-   the config sensor updates immediately after reload.
+3. Change anything later via the integration's **Configure** button. It opens
+   a sectioned configurator for Home, Weather, Lights, Scenes/Scripts, Climate,
+   Appearance, and Pairing/Security. The config sensor and Roku endpoint update
+   immediately after each saved section.
+
+The Pairing/Security screen displays the current short pairing code and can
+revoke paired Roku credentials. Reset pairing only when you intend to reconnect
+the TV with a newly generated code.
 
 ## Entities & services
 

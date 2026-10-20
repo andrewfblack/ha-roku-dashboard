@@ -121,5 +121,109 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure Roku Dashboard",
+        "menu_options": {
+          "home": "Home tab",
+          "weather": "Weather tab",
+          "lights": "Lights tab",
+          "scenes": "Scenes and scripts",
+          "climate": "Climate tab",
+          "appearance": "Appearance",
+          "pairing": "Pairing and security"
+        }
+      },
+      "home": {
+        "title": "Home tab",
+        "description": "Configure the home tab shown on Roku.",
+        "data": {
+          "indoor_entity": "Indoor temperature entity",
+          "calendar_entities": "Calendars to display (optional)",
+          "meal_entity": "Meal plan helper"
+        },
+        "data_description": {
+          "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
+          "calendar_entities": "Only events from the selected calendars are shown on the Home tab. Leave empty to show all calendars.",
+          "meal_entity": "Text helper shown in the meal-plan panel."
+        }
+      },
+      "weather": {
+        "title": "Weather tab",
+        "description": "Configure the weather tab shown on Roku.",
+        "data": {
+          "weather_tab_enabled": "Enable Weather tab",
+          "outdoor_entity": "Outdoor weather entity (optional)",
+          "forecast_type": "Weather forecast type",
+          "forecast_count": "Number of forecast periods (3-8)"
+        },
+        "data_description": {
+          "weather_tab_enabled": "Adds a dedicated Weather tab to the Roku dashboard.",
+          "outdoor_entity": "Weather entity used for the outside conditions card. Auto-detected if left empty.",
+          "forecast_type": "Show a daily or hourly forecast.",
+          "forecast_count": "How many forecast cards the Roku should display."
+        }
+      },
+      "lights": {
+        "title": "Lights tab",
+        "description": "Configure the lights tab shown on Roku.",
+        "data": {
+          "lights_tab_enabled": "Enable Lights tab",
+          "light_entities": "Controllable lights"
+        },
+        "data_description": {
+          "lights_tab_enabled": "Adds the Lights control tab to Roku.",
+          "light_entities": "Only selected lights can be controlled from Roku."
+        }
+      },
+      "scenes": {
+        "title": "Scenes and scripts tab",
+        "description": "Configure the scenes and scripts tab shown on Roku.",
+        "data": {
+          "scenes_tab_enabled": "Enable Scenes tab",
+          "scene_entities": "Controllable scenes and scripts"
+        },
+        "data_description": {
+          "scenes_tab_enabled": "Adds the Scenes control tab to Roku.",
+          "scene_entities": "Only selected scenes and scripts can be activated from Roku."
+        }
+      },
+      "climate": {
+        "title": "Climate tab",
+        "description": "Configure the climate tab shown on Roku.",
+        "data": {
+          "climate_tab_enabled": "Enable Climate tab",
+          "climate_entities": "Controllable climate entities"
+        },
+        "data_description": {
+          "climate_tab_enabled": "Adds the Climate control tab to Roku.",
+          "climate_entities": "Only selected thermostats can be controlled from Roku."
+        }
+      },
+      "appearance": {
+        "title": "Appearance",
+        "description": "Configure the appearance shown on Roku.",
+        "data": {
+          "background": "Background",
+          "background_url": "Background image URL (used with Custom)",
+          "layout": "Layout"
+        },
+        "data_description": {
+          "background_url": "Any image URL Home Assistant can reach, e.g. /local/fall.jpg"
+        }
+      },
+      "pairing": {
+        "title": "Pairing and security",
+        "description": "Current pairing code: {pairing_code}. Resetting pairing disconnects every paired Roku and generates a new code.",
+        "data": {
+          "reset_pairing": "Reset pairing and disconnect devices"
+        },
+        "data_description": {
+          "reset_pairing": "Generate a new short pairing code and revoke the stored Roku device credential."
+        }
+      }
+    }
   }
 }

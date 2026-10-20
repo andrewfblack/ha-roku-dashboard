@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from typing import Any
 
 import voluptuous as vol
@@ -39,6 +40,8 @@ from .const import (
     CONF_SCENE_ENTITIES,
     CONF_CLIMATE_TAB_ENABLED,
     CONF_CLIMATE_ENTITIES,
+    CONF_PAIRING_CODE,
+    CONF_DEVICE_TOKEN,
     CREATE_NEW_MEAL_HELPER,
     DOMAIN,
     LAYOUTS,
@@ -179,6 +182,136 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
     return vol.Schema(schema)
 
 
+def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
+    """Build the smaller schemas used by the configuration menu."""
+    indoor = EntitySelector(
+        EntitySelectorConfig(domain=["sensor", "climate"], multiple=False)
+    )
+    outdoor = EntitySelector(EntitySelectorConfig(domain=["weather"], multiple=False))
+    calendars = EntitySelector(
+        EntitySelectorConfig(domain=["calendar"], multiple=True)
+    )
+    lights = EntitySelector(EntitySelectorConfig(domain=["light"], multiple=True))
+    scenes = EntitySelector(
+        EntitySelectorConfig(domain=["scene", "script"], multiple=True)
+    )
+    climates = EntitySelector(
+        EntitySelectorConfig(domain=["climate"], multiple=True)
+    )
+    meal = SelectSelector(
+        SelectSelectorConfig(
+            options=_meal_entity_options(hass), mode=SelectSelectorMode.DROPDOWN
+        )
+    )
+    background = SelectSelector(
+        SelectSelectorConfig(
+            options=[{"value": key, "label": label} for key, label in BACKGROUNDS.items()],
+            mode=SelectSelectorMode.DROPDOWN,
+        )
+    )
+    layout = SelectSelector(
+        SelectSelectorConfig(
+            options=[{"value": key, "label": label} for key, label in LAYOUTS.items()],
+            mode=SelectSelectorMode.DROPDOWN,
+        )
+    )
+    forecast = SelectSelector(
+        SelectSelectorConfig(
+            options=[{"value": key, "label": label} for key, label in FORECAST_TYPES.items()],
+            mode=SelectSelectorMode.DROPDOWN,
+        )
+    )
+    return {
+        "home": vol.Schema(
+            {
+                vol.Required(
+                    CONF_INDOOR_ENTITY,
+                    default=defaults.get(CONF_INDOOR_ENTITY, vol.UNDEFINED),
+                ): indoor,
+                vol.Optional(
+                    CONF_CALENDAR_ENTITIES,
+                    default=defaults.get(CONF_CALENDAR_ENTITIES, vol.UNDEFINED),
+                ): calendars,
+                vol.Required(
+                    CONF_MEAL_ENTITY,
+                    default=defaults.get(CONF_MEAL_ENTITY, MEAL_HELPER_ENTITY),
+                ): meal,
+            }
+        ),
+        "weather": vol.Schema(
+            {
+                vol.Required(
+                    CONF_WEATHER_TAB_ENABLED,
+                    default=defaults.get(CONF_WEATHER_TAB_ENABLED, True),
+                ): bool,
+                vol.Optional(
+                    CONF_OUTDOOR_ENTITY,
+                    default=defaults.get(CONF_OUTDOOR_ENTITY, vol.UNDEFINED),
+                ): outdoor,
+                vol.Required(
+                    CONF_FORECAST_TYPE,
+                    default=defaults.get(CONF_FORECAST_TYPE, "daily"),
+                ): forecast,
+                vol.Required(
+                    CONF_FORECAST_COUNT,
+                    default=defaults.get(CONF_FORECAST_COUNT, 5),
+                ): vol.All(vol.Coerce(int), vol.Range(min=3, max=8)),
+            }
+        ),
+        "lights": vol.Schema(
+            {
+                vol.Required(
+                    CONF_LIGHTS_TAB_ENABLED,
+                    default=defaults.get(CONF_LIGHTS_TAB_ENABLED, True),
+                ): bool,
+                vol.Optional(
+                    CONF_LIGHT_ENTITIES,
+                    default=defaults.get(CONF_LIGHT_ENTITIES, vol.UNDEFINED),
+                ): lights,
+            }
+        ),
+        "scenes": vol.Schema(
+            {
+                vol.Required(
+                    CONF_SCENES_TAB_ENABLED,
+                    default=defaults.get(CONF_SCENES_TAB_ENABLED, True),
+                ): bool,
+                vol.Optional(
+                    CONF_SCENE_ENTITIES,
+                    default=defaults.get(CONF_SCENE_ENTITIES, vol.UNDEFINED),
+                ): scenes,
+            }
+        ),
+        "climate": vol.Schema(
+            {
+                vol.Required(
+                    CONF_CLIMATE_TAB_ENABLED,
+                    default=defaults.get(CONF_CLIMATE_TAB_ENABLED, True),
+                ): bool,
+                vol.Optional(
+                    CONF_CLIMATE_ENTITIES,
+                    default=defaults.get(CONF_CLIMATE_ENTITIES, vol.UNDEFINED),
+                ): climates,
+            }
+        ),
+        "appearance": vol.Schema(
+            {
+                vol.Required(
+                    CONF_BACKGROUND,
+                    default=defaults.get(CONF_BACKGROUND, "fall"),
+                ): background,
+                vol.Optional(
+                    CONF_BACKGROUND_URL,
+                    default=defaults.get(CONF_BACKGROUND_URL, vol.UNDEFINED),
+                ): vol.Coerce(str),
+                vol.Required(
+                    CONF_LAYOUT, default=defaults.get(CONF_LAYOUT, "home")
+                ): layout,
+            }
+        ),
+    }
+
+
 class RokuDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the initial configuration."""
 
@@ -207,22 +340,87 @@ class RokuDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class RokuDashboardOptionsFlow(OptionsFlow):
-    """Let the user change sensors, helper, background and layout later."""
+    """Sectioned Roku Dashboard configurator."""
+
+    _SECTION_KEYS = {
+        "home": [CONF_INDOOR_ENTITY, CONF_CALENDAR_ENTITIES, CONF_MEAL_ENTITY],
+        "weather": [
+            CONF_WEATHER_TAB_ENABLED,
+            CONF_OUTDOOR_ENTITY,
+            CONF_FORECAST_TYPE,
+            CONF_FORECAST_COUNT,
+        ],
+        "lights": [CONF_LIGHTS_TAB_ENABLED, CONF_LIGHT_ENTITIES],
+        "scenes": [CONF_SCENES_TAB_ENABLED, CONF_SCENE_ENTITIES],
+        "climate": [CONF_CLIMATE_TAB_ENABLED, CONF_CLIMATE_ENTITIES],
+        "appearance": [CONF_BACKGROUND, CONF_BACKGROUND_URL, CONF_LAYOUT],
+    }
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Manage the options."""
+        """Show the configuration section menu."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=[
+                "home",
+                "weather",
+                "lights",
+                "scenes",
+                "climate",
+                "appearance",
+                "pairing",
+            ],
+        )
+
+    async def _async_section(
+        self, step_id: str, user_input: dict[str, Any] | None
+    ) -> ConfigFlowResult:
         if user_input is not None:
-            if not user_input.get(CONF_BACKGROUND_URL):
-                user_input.pop(CONF_BACKGROUND_URL, None)
+            options = dict(self.config_entry.options)
+            for key in self._SECTION_KEYS[step_id]:
+                options.pop(key, None)
             if user_input.get(CONF_MEAL_ENTITY) == CREATE_NEW_MEAL_HELPER:
                 user_input[CONF_MEAL_ENTITY] = MEAL_HELPER_ENTITY
-            return self.async_create_entry(data=user_input)
+            if not user_input.get(CONF_BACKGROUND_URL):
+                user_input.pop(CONF_BACKGROUND_URL, None)
+            options.update(user_input)
+            return self.async_create_entry(data=options)
+        schema = _section_schemas(dict(self.config_entry.options), self.hass)[step_id]
+        return self.async_show_form(step_id=step_id, data_schema=schema)
 
+    async def async_step_home(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_section("home", user_input)
+
+    async def async_step_weather(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_section("weather", user_input)
+
+    async def async_step_lights(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_section("lights", user_input)
+
+    async def async_step_scenes(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_section("scenes", user_input)
+
+    async def async_step_climate(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_section("climate", user_input)
+
+    async def async_step_appearance(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_section("appearance", user_input)
+
+    async def async_step_pairing(self, user_input=None) -> ConfigFlowResult:
+        if user_input is not None:
+            if user_input.get("reset_pairing", False):
+                data = dict(self.config_entry.data)
+                data[CONF_PAIRING_CODE] = secrets.token_hex(4).upper()
+                data[CONF_DEVICE_TOKEN] = secrets.token_hex(32).upper()
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry, data=data
+                )
+            return self.async_create_entry(data=dict(self.config_entry.options))
         return self.async_show_form(
-            step_id="init",
-            data_schema=self.add_suggested_values_to_schema(
-                _schema({}, self.hass), self.config_entry.options
-            ),
+            step_id="pairing",
+            data_schema=vol.Schema({vol.Required("reset_pairing", default=False): bool}),
+            description_placeholders={
+                "pairing_code": self.config_entry.data.get(CONF_PAIRING_CODE, "")
+            },
         )
