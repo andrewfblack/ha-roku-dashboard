@@ -42,6 +42,7 @@ from .const import (
     CONF_CLIMATE_ENTITIES,
     CONF_PAIRING_CODE,
     CONF_DEVICE_TOKEN,
+    CONF_US_HOLIDAYS_ENABLED,
     CREATE_NEW_MEAL_HELPER,
     DOMAIN,
     LAYOUTS,
@@ -163,6 +164,10 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
             default=defaults.get(CONF_CALENDAR_ENTITIES, vol.UNDEFINED),
         ): calendars,
         vol.Required(
+            CONF_US_HOLIDAYS_ENABLED,
+            default=defaults.get(CONF_US_HOLIDAYS_ENABLED, True),
+        ): bool,
+        vol.Required(
             CONF_MEAL_ENTITY,
             default=defaults.get(CONF_MEAL_ENTITY, CREATE_NEW_MEAL_HELPER),
         ): meal,
@@ -232,6 +237,10 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                     CONF_CALENDAR_ENTITIES,
                     default=defaults.get(CONF_CALENDAR_ENTITIES, vol.UNDEFINED),
                 ): calendars,
+                vol.Required(
+                    CONF_US_HOLIDAYS_ENABLED,
+                    default=defaults.get(CONF_US_HOLIDAYS_ENABLED, True),
+                ): bool,
                 vol.Required(
                     CONF_MEAL_ENTITY,
                     default=defaults.get(CONF_MEAL_ENTITY, MEAL_HELPER_ENTITY),
@@ -343,7 +352,12 @@ class RokuDashboardOptionsFlow(OptionsFlow):
     """Sectioned Roku Dashboard configurator."""
 
     _SECTION_KEYS = {
-        "home": [CONF_INDOOR_ENTITY, CONF_CALENDAR_ENTITIES, CONF_MEAL_ENTITY],
+        "home": [
+            CONF_INDOOR_ENTITY,
+            CONF_CALENDAR_ENTITIES,
+            CONF_US_HOLIDAYS_ENABLED,
+            CONF_MEAL_ENTITY,
+        ],
         "weather": [
             CONF_WEATHER_TAB_ENABLED,
             CONF_OUTDOOR_ENTITY,

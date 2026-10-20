@@ -19,6 +19,8 @@ Dashboard" channel from inside Home Assistant:
   entities; only their events show on the Home tab. Leave empty to show all.
   The API provides today's agenda, a month grid, and every current-month event
   for the Roku's scrollable agenda.
+- 🇺🇸 **US federal holidays** — optionally adds federal holidays and weekend
+  observed dates locally, without another calendar account or cloud API.
 - 🎨 **Backgrounds** — fall, winter, spring, summer presets, or your own
   image URL (served from `/local/...`).
 - 🧱 **Layout presets** — `home`, `compact`, `meals_first` (and room for more

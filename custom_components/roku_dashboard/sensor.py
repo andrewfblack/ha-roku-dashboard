@@ -32,6 +32,7 @@ from .const import (
     CONF_SCENE_ENTITIES,
     CONF_CLIMATE_TAB_ENABLED,
     CONF_CLIMATE_ENTITIES,
+    CONF_US_HOLIDAYS_ENABLED,
     DOMAIN,
 )
 
@@ -106,6 +107,7 @@ class RokuDashboardConfigSensor(Entity):
             "climate_entities": options.get(CONF_CLIMATE_ENTITIES, []),
             "meal_entity": meal,
             "calendar_entities": [c for c in calendars if c],
+            "us_holidays_enabled": options.get(CONF_US_HOLIDAYS_ENABLED, True),
             "background": background,
             "background_url": background_url if background == "custom_url" else "",
             "layout": layout,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from calendar import monthrange
+from datetime import date, timedelta
 import logging
 import secrets
 from typing import Any
@@ -30,6 +31,7 @@ from .const import (
     CONF_SCENE_ENTITIES,
     CONF_CLIMATE_TAB_ENABLED,
     CONF_CLIMATE_ENTITIES,
+    CONF_US_HOLIDAYS_ENABLED,
     DOMAIN,
 )
 
@@ -73,7 +75,9 @@ class RokuDashboardView(HomeAssistantView):
         if meal_state and meal_state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
             meal_plan = meal_state.state
 
-        events, month = await self._calendar_data(calendars)
+        events, month = await self._calendar_data(
+            calendars, options.get(CONF_US_HOLIDAYS_ENABLED, True)
+        )
         weather = await self._weather_data(outdoor, options)
         lights = self._entity_cards(options.get(CONF_LIGHT_ENTITIES, []))
         scenes = self._entity_cards(options.get(CONF_SCENE_ENTITIES, []))
@@ -287,37 +291,35 @@ class RokuDashboardView(HomeAssistantView):
         }
 
     async def _calendar_data(
-        self, calendars: list[str]
+        self, calendars: list[str], include_us_holidays: bool
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         if not calendars:
             calendars = [
                 state.entity_id
                 for state in self.hass.states.async_all(["calendar"])
             ]
-        if not calendars:
-            return [], {}
-
         now = dt_util.now()
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         if now.month == 12:
             month_end = month_start.replace(year=now.year + 1, month=1)
         else:
             month_end = month_start.replace(month=now.month + 1)
-        try:
-            response = await self.hass.services.async_call(
-                "calendar",
-                "get_events",
-                {
-                    "entity_id": calendars,
-                    "start_date_time": month_start.isoformat(),
-                    "end_date_time": month_end.isoformat(),
-                },
-                blocking=True,
-                return_response=True,
-            )
-        except Exception:  # Calendar providers vary; don't break all dashboard data.
-            _LOGGER.exception("Unable to fetch Roku dashboard calendar events")
-            return [], {}
+        response = {}
+        if calendars:
+            try:
+                response = await self.hass.services.async_call(
+                    "calendar",
+                    "get_events",
+                    {
+                        "entity_id": calendars,
+                        "start_date_time": month_start.isoformat(),
+                        "end_date_time": month_end.isoformat(),
+                    },
+                    blocking=True,
+                    return_response=True,
+                )
+            except Exception:  # Holidays still work if a provider fails.
+                _LOGGER.exception("Unable to fetch Roku dashboard calendar events")
 
         output: list[dict[str, Any]] = []
         event_days: set[int] = set()
@@ -338,6 +340,30 @@ class RokuDashboardView(HomeAssistantView):
                     }
                 )
         output.sort(key=lambda item: item["start"])
+        if include_us_holidays:
+            for holiday in self._us_federal_holidays(now.year):
+                if holiday[0].year == now.year and holiday[0].month == now.month:
+                    output.append(
+                        {
+                            "title": holiday[1],
+                            "start": holiday[0].isoformat(),
+                            "all_day": True,
+                        }
+                    )
+                    event_days.add(holiday[0].day)
+            # New Year's observed day may land in the previous December.
+            if now.month == 12:
+                for holiday in self._us_federal_holidays(now.year + 1):
+                    if holiday[0].year == now.year and holiday[0].month == 12:
+                        output.append(
+                            {
+                                "title": holiday[1],
+                                "start": holiday[0].isoformat(),
+                                "all_day": True,
+                            }
+                        )
+                        event_days.add(holiday[0].day)
+            output.sort(key=lambda item: item["start"])
         today = now.date().isoformat()
         todays_events = [item for item in output if item["start"][:10] == today][:3]
         days_in_month = monthrange(now.year, now.month)[1]
@@ -353,3 +379,38 @@ class RokuDashboardView(HomeAssistantView):
             "event_days": sorted(event_days),
             "events": output,
         }
+
+    @staticmethod
+    def _us_federal_holidays(year: int) -> list[tuple[date, str]]:
+        """Calculate US federal holidays without an external dependency."""
+        holidays: list[tuple[date, str]] = []
+
+        def add_fixed(month: int, day: int, name: str) -> None:
+            actual = date(year, month, day)
+            holidays.append((actual, name))
+            if actual.weekday() == 5:  # Saturday -> Friday
+                holidays.append((actual - timedelta(days=1), f"{name} (observed)"))
+            elif actual.weekday() == 6:  # Sunday -> Monday
+                holidays.append((actual + timedelta(days=1), f"{name} (observed)"))
+
+        def nth_weekday(month: int, weekday: int, occurrence: int) -> date:
+            first = date(year, month, 1)
+            offset = (weekday - first.weekday()) % 7
+            return first + timedelta(days=offset + (occurrence - 1) * 7)
+
+        def last_weekday(month: int, weekday: int) -> date:
+            last = date(year, month, monthrange(year, month)[1])
+            return last - timedelta(days=(last.weekday() - weekday) % 7)
+
+        add_fixed(1, 1, "New Year's Day")
+        holidays.append((nth_weekday(1, 0, 3), "Martin Luther King Jr. Day"))
+        holidays.append((nth_weekday(2, 0, 3), "Washington's Birthday"))
+        holidays.append((last_weekday(5, 0), "Memorial Day"))
+        add_fixed(6, 19, "Juneteenth National Independence Day")
+        add_fixed(7, 4, "Independence Day")
+        holidays.append((nth_weekday(9, 0, 1), "Labor Day"))
+        holidays.append((nth_weekday(10, 0, 2), "Columbus Day"))
+        add_fixed(11, 11, "Veterans Day")
+        holidays.append((nth_weekday(11, 3, 4), "Thanksgiving Day"))
+        add_fixed(12, 25, "Christmas Day")
+        return holidays

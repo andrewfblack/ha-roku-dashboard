@@ -19,6 +19,7 @@ CONF_SCENES_TAB_ENABLED = "scenes_tab_enabled"
 CONF_SCENE_ENTITIES = "scene_entities"
 CONF_CLIMATE_TAB_ENABLED = "climate_tab_enabled"
 CONF_CLIMATE_ENTITIES = "climate_entities"
+CONF_US_HOLIDAYS_ENABLED = "us_holidays_enabled"
 
 FORECAST_TYPES = {
     "daily": "Daily forecast",
