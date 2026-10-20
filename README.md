@@ -77,9 +77,10 @@ automation:
 
 ## How the Roku channel uses this
 
-The sideloaded Roku channel (`roku-ha-dashboard`) authenticates with a
-long-lived access token and reads states directly. It fetches
-`sensor.roku_dashboard_config` and:
+The companion Roku channel lives at
+[andrewfblack/roku-ha-dashboard](https://github.com/andrewfblack/roku-ha-dashboard).
+It authenticates with a long-lived access token and reads states directly. It
+fetches `sensor.roku_dashboard_config` and:
 
 - queries **only the selected calendars**,
 - uses the configured **meal entity**,
