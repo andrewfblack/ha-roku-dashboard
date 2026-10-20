@@ -8,6 +8,7 @@ CONF_MEAL_ENTITY = "meal_entity"
 CONF_BACKGROUND = "background"
 CONF_LAYOUT = "layout"
 CONF_CALENDAR_ENTITIES = "calendar_entities"
+CONF_PAIRING_CODE = "pairing_code"
 
 # Config-flow value meaning "create and use our own helper"
 CREATE_NEW_MEAL_HELPER = "create_new"

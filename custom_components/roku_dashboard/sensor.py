@@ -22,6 +22,7 @@ from .const import (
     CONF_LAYOUT,
     CONF_MEAL_ENTITY,
     CONF_OUTDOOR_ENTITY,
+    CONF_PAIRING_CODE,
     DOMAIN,
 )
 
@@ -60,8 +61,8 @@ class RokuDashboardConfigSensor(Entity):
 
     @property
     def native_value(self) -> str:
-        """The configuration JSON."""
-        return json.dumps(self._config_payload(), indent=1)
+        """Keep the state short; complete configuration lives in attributes."""
+        return "ready"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -82,6 +83,7 @@ class RokuDashboardConfigSensor(Entity):
 
         return {
             "schema": CONFIG_SCHEMA_VERSION,
+            "pairing_code": self._entry.data.get(CONF_PAIRING_CODE, ""),
             "indoor_entity": indoor,
             "outdoor_entity": outdoor,
             "meal_entity": meal,

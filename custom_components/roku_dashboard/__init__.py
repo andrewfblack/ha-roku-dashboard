@@ -10,6 +10,7 @@ Bridges your Roku HA Dashboard channel to Home Assistant:
 from __future__ import annotations
 
 import logging
+import secrets
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -20,6 +21,7 @@ from homeassistant.helpers.storage import Store
 
 from .const import (
     CONF_MEAL_ENTITY,
+    CONF_PAIRING_CODE,
     DOMAIN,
     MEAL_HELPER_ENTITY,
     MEAL_HELPER_KEY,
@@ -27,6 +29,7 @@ from .const import (
     STORAGE_VERSION,
 )
 from .services import async_setup_services
+from .api import RokuDashboardView
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,12 +40,18 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the Roku Dashboard component (services are registered here)."""
     hass.data.setdefault(DOMAIN, {})
     async_setup_services(hass)
+    hass.http.register_view(RokuDashboardView(hass))
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up a Roku Dashboard config entry."""
     hass.data.setdefault(DOMAIN, {})
+
+    if not entry.data.get(CONF_PAIRING_CODE):
+        data = dict(entry.data)
+        data[CONF_PAIRING_CODE] = secrets.token_hex(4).upper()
+        hass.config_entries.async_update_entry(entry, data=data)
 
     store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
     stored_value: str = (await store.async_load()) or ""

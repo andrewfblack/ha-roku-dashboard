@@ -19,6 +19,9 @@ Dashboard" channel from inside Home Assistant:
 - 📡 **Everything is published on `sensor.roku_dashboard_config`** — a single
   JSON state the Roku channel reads, so future dashboard tweaks are made in
   HA instead of rebuilding the channel.
+- 🔗 **Short-code pairing** — the TV uses an 8-character code instead of a
+  long-lived Home Assistant access token. The local pairing endpoint exposes
+  only the entities and calendars selected for this dashboard.
 
 ## Installation (HACS)
 
@@ -79,8 +82,9 @@ automation:
 
 The companion Roku channel lives at
 [andrewfblack/roku-ha-dashboard](https://github.com/andrewfblack/roku-ha-dashboard).
-It authenticates with a long-lived access token and reads states directly. It
-fetches `sensor.roku_dashboard_config` and:
+It connects using the `pairing_code` attribute shown on
+`sensor.roku_dashboard_config`; no long-lived HA token is required on the TV.
+The integration's local endpoint returns only the configured dashboard data.
 
 - queries **only the selected calendars**,
 - uses the configured **meal entity**,
