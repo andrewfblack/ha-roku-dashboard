@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from calendar import monthrange
 import logging
 import secrets
 from typing import Any
@@ -72,7 +72,7 @@ class RokuDashboardView(HomeAssistantView):
         if meal_state and meal_state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
             meal_plan = meal_state.state
 
-        events = await self._calendar_events(calendars)
+        events, month = await self._calendar_data(calendars)
         return self.json(
             {
                 "ok": True,
@@ -80,43 +80,57 @@ class RokuDashboardView(HomeAssistantView):
                 "resolved_entities": {"inside": indoor, "outside": outdoor},
                 "meal_plan": meal_plan,
                 "calendar_events": events,
+                "month_calendar": month,
                 "background": options.get(CONF_BACKGROUND, "fall"),
                 "background_url": options.get(CONF_BACKGROUND_URL, ""),
                 "layout": options.get(CONF_LAYOUT, "home"),
             }
         )
 
-    async def _calendar_events(self, calendars: list[str]) -> list[dict[str, Any]]:
+    async def _calendar_data(
+        self, calendars: list[str]
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         if not calendars:
             calendars = [
                 state.entity_id
                 for state in self.hass.states.async_all(["calendar"])
             ]
         if not calendars:
-            return []
+            return [], {}
 
         now = dt_util.now()
-        end = now + timedelta(days=1)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if now.month == 12:
+            month_end = month_start.replace(year=now.year + 1, month=1)
+        else:
+            month_end = month_start.replace(month=now.month + 1)
         try:
             response = await self.hass.services.async_call(
                 "calendar",
                 "get_events",
                 {
                     "entity_id": calendars,
-                    "start_date_time": now.isoformat(),
-                    "end_date_time": end.isoformat(),
+                    "start_date_time": month_start.isoformat(),
+                    "end_date_time": month_end.isoformat(),
                 },
                 blocking=True,
                 return_response=True,
             )
         except Exception:  # Calendar providers vary; don't break all dashboard data.
             _LOGGER.exception("Unable to fetch Roku dashboard calendar events")
-            return []
+            return [], {}
 
         output: list[dict[str, Any]] = []
+        event_days: set[int] = set()
         for calendar_data in (response or {}).values():
             for event in calendar_data.get("events", []):
                 start = event.get("start", "")
+                start_date = start[:10]
+                if start_date.startswith(f"{now.year:04d}-{now.month:02d}-"):
+                    try:
+                        event_days.add(int(start_date[-2:]))
+                    except ValueError:
+                        pass
                 output.append(
                     {
                         "title": event.get("summary", "Untitled"),
@@ -125,4 +139,17 @@ class RokuDashboardView(HomeAssistantView):
                     }
                 )
         output.sort(key=lambda item: item["start"])
-        return output[:5]
+        today = now.date().isoformat()
+        todays_events = [item for item in output if item["start"][:10] == today][:3]
+        days_in_month = monthrange(now.year, now.month)[1]
+        # Python Monday=0; Roku grid uses Sunday=0.
+        first_weekday = (month_start.weekday() + 1) % 7
+        return todays_events, {
+            "title": now.strftime("%B %Y"),
+            "year": now.year,
+            "month": now.month,
+            "today": now.day,
+            "days_in_month": days_in_month,
+            "first_weekday": first_weekday,
+            "event_days": sorted(event_days),
+        }

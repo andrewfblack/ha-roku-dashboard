@@ -12,6 +12,7 @@ Dashboard" channel from inside Home Assistant:
 - 🌤️ **Pick the outdoor weather entity** (optional — auto-detects `weather.*`).
 - 📅 **Pick which calendars to display** — select one or more calendar
   entities; only their events show on the Home tab. Leave empty to show all.
+  The API provides today's agenda plus a full current-month overview.
 - 🎨 **Backgrounds** — fall, winter, spring, summer presets, or your own
   image URL (served from `/local/...`).
 - 🧱 **Layout presets** — `home`, `compact`, `meals_first` (and room for more
