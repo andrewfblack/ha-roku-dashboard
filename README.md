@@ -17,7 +17,8 @@ Dashboard" channel from inside Home Assistant:
 - 🌡️ **Climate tab** — explicitly select thermostats Roku may adjust.
 - 📅 **Pick which calendars to display** — select one or more calendar
   entities; only their events show on the Home tab. Leave empty to show all.
-  The API provides today's agenda plus a full current-month overview.
+  The API provides today's agenda, a month grid, and every current-month event
+  for the Roku's scrollable agenda.
 - 🎨 **Backgrounds** — fall, winter, spring, summer presets, or your own
   image URL (served from `/local/...`).
 - 🧱 **Layout presets** — `home`, `compact`, `meals_first` (and room for more

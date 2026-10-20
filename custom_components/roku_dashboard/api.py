@@ -351,4 +351,5 @@ class RokuDashboardView(HomeAssistantView):
             "days_in_month": days_in_month,
             "first_weekday": first_weekday,
             "event_days": sorted(event_days),
+            "events": output,
         }
