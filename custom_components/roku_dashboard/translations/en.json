@@ -1,0 +1,89 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Roku Dashboard",
+        "description": "Pick what your Roku Home dashboard should show. The meal-plan helper is created for you; you can change everything later in the integration's options.",
+        "data": {
+          "indoor_entity": "Indoor temperature entity",
+          "outdoor_entity": "Outdoor weather entity (optional)",
+          "calendar_entities": "Calendars to display (optional)",
+          "meal_entity": "Meal plan helper",
+          "background": "Background",
+          "background_url": "Background image URL (used with Custom)",
+          "layout": "Layout"
+        },
+        "data_description": {
+          "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
+          "outdoor_entity": "Weather entity used for the outside conditions card. Auto-detected if left empty.",
+          "calendar_entities": "Only events from the selected calendars are shown on the Home tab. Leave empty to show all calendars.",
+          "meal_entity": "Text helper shown in the meal-plan panel. 'Create new helper' makes input_text.roku_dashboard_meal_plan for you.",
+          "background_url": "Any image URL Home Assistant can reach, e.g. /local/fall.jpg"
+        }
+      },
+      "init": {
+        "title": "Roku Dashboard options",
+        "description": "Update sensors, calendars, helper, background and layout. The Roku channel picks up changes on its next refresh.",
+        "data": {
+          "indoor_entity": "Indoor temperature entity",
+          "outdoor_entity": "Outdoor weather entity (optional)",
+          "calendar_entities": "Calendars to display (optional)",
+          "meal_entity": "Meal plan helper",
+          "background": "Background",
+          "background_url": "Background image URL (used with Custom)",
+          "layout": "Layout"
+        },
+        "data_description": {
+          "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
+          "outdoor_entity": "Weather entity used for the outside conditions card. Auto-detected if left empty.",
+          "calendar_entities": "Only events from the selected calendars are shown on the Home tab. Leave empty to show all calendars.",
+          "meal_entity": "Text helper shown in the meal-plan panel.",
+          "background_url": "Any image URL Home Assistant can reach, e.g. /local/fall.jpg"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Roku Dashboard is already configured."
+    }
+  },
+  "services": {
+    "set_meal_plan": {
+      "name": "Set meal plan",
+      "description": "Writes the meal plan into the configured text helper.",
+      "fields": {
+        "value": {
+          "name": "Value",
+          "description": "The meal plan text to display on the Roku."
+        },
+        "entity_id": {
+          "name": "Entity",
+          "description": "Optional target; defaults to the configured helper."
+        }
+      }
+    },
+    "set_background": {
+      "name": "Set background",
+      "description": "Changes the Roku channel background.",
+      "fields": {
+        "value": {
+          "name": "Background",
+          "description": "One of fall, winter, spring, summer, custom_url."
+        },
+        "background_url": {
+          "name": "Image URL",
+          "description": "Image URL used when background is custom_url."
+        }
+      }
+    },
+    "set_layout": {
+      "name": "Set layout",
+      "description": "Changes the Roku channel layout preset.",
+      "fields": {
+        "value": {
+          "name": "Layout",
+          "description": "One of home, compact, meals_first."
+        }
+      }
+    }
+  }
+}

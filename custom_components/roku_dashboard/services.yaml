@@ -1,0 +1,46 @@
+set_meal_plan:
+  fields:
+    value:
+      required: true
+      example: "Mon: Taco night\nTue: Pasta"
+      selector:
+        text:
+    entity_id:
+      required: false
+      example: "input_text.roku_dashboard_meal_plan"
+      selector:
+        entity:
+          domain:
+            - input_text
+            - text
+
+set_background:
+  fields:
+    value:
+      required: true
+      example: "winter"
+      selector:
+        select:
+          options:
+            - "fall"
+            - "winter"
+            - "spring"
+            - "summer"
+            - "custom_url"
+    background_url:
+      required: false
+      example: "http://homeassistant.local:8123/local/fall.jpg"
+      selector:
+        text:
+
+set_layout:
+  fields:
+    value:
+      required: true
+      example: "meals_first"
+      selector:
+        select:
+          options:
+            - "home"
+            - "compact"
+            - "meals_first"

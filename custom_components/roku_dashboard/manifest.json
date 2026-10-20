@@ -1,0 +1,13 @@
+{
+  "domain": "roku_dashboard",
+  "name": "Roku Dashboard",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["input_text"],
+  "documentation": "https://github.com/andrewfblack/ha-roku-dashboard",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/andrewfblack/ha-roku-dashboard/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
