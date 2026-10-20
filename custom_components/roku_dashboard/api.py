@@ -32,6 +32,7 @@ from .const import (
     CONF_CLIMATE_TAB_ENABLED,
     CONF_CLIMATE_ENTITIES,
     CONF_US_HOLIDAYS_ENABLED,
+    CONF_US_OBSERVANCES_ENABLED,
     DOMAIN,
 )
 
@@ -76,7 +77,9 @@ class RokuDashboardView(HomeAssistantView):
             meal_plan = meal_state.state
 
         events, month = await self._calendar_data(
-            calendars, options.get(CONF_US_HOLIDAYS_ENABLED, True)
+            calendars,
+            options.get(CONF_US_HOLIDAYS_ENABLED, True),
+            options.get(CONF_US_OBSERVANCES_ENABLED, True),
         )
         weather = await self._weather_data(outdoor, options)
         lights = self._entity_cards(options.get(CONF_LIGHT_ENTITIES, []))
@@ -291,7 +294,10 @@ class RokuDashboardView(HomeAssistantView):
         }
 
     async def _calendar_data(
-        self, calendars: list[str], include_us_holidays: bool
+        self,
+        calendars: list[str],
+        include_us_holidays: bool,
+        include_us_observances: bool,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         if not calendars:
             calendars = [
@@ -364,6 +370,18 @@ class RokuDashboardView(HomeAssistantView):
                         )
                         event_days.add(holiday[0].day)
             output.sort(key=lambda item: item["start"])
+        if include_us_observances:
+            for observance in self._us_observances(now.year):
+                if observance[0].month == now.month:
+                    output.append(
+                        {
+                            "title": observance[1],
+                            "start": observance[0].isoformat(),
+                            "all_day": True,
+                        }
+                    )
+                    event_days.add(observance[0].day)
+            output.sort(key=lambda item: item["start"])
         today = now.date().isoformat()
         todays_events = [item for item in output if item["start"][:10] == today][:3]
         days_in_month = monthrange(now.year, now.month)[1]
@@ -414,3 +432,43 @@ class RokuDashboardView(HomeAssistantView):
         holidays.append((nth_weekday(11, 3, 4), "Thanksgiving Day"))
         add_fixed(12, 25, "Christmas Day")
         return holidays
+
+    @staticmethod
+    def _us_observances(year: int) -> list[tuple[date, str]]:
+        """Calculate common US cultural and family observances."""
+
+        def nth_weekday(month: int, weekday: int, occurrence: int) -> date:
+            first = date(year, month, 1)
+            offset = (weekday - first.weekday()) % 7
+            return first + timedelta(days=offset + (occurrence - 1) * 7)
+
+        # Anonymous Gregorian algorithm (Meeus/Jones/Butcher) for Easter.
+        a = year % 19
+        b = year // 100
+        c = year % 100
+        d = b // 4
+        e = b % 4
+        f = (b + 8) // 25
+        g = (b - f + 1) // 3
+        h = (19 * a + b - d - g + 15) % 30
+        i = c // 4
+        k = c % 4
+        length = (32 + 2 * e + 2 * i - h - k) % 7
+        m = (a + 11 * h + 22 * length) // 451
+        easter_month = (h + length - 7 * m + 114) // 31
+        easter_day = ((h + length - 7 * m + 114) % 31) + 1
+        easter = date(year, easter_month, easter_day)
+
+        return [
+            (date(year, 2, 2), "Groundhog Day"),
+            (date(year, 2, 14), "Valentine's Day"),
+            (easter - timedelta(days=47), "Mardi Gras"),
+            (date(year, 3, 17), "St. Patrick's Day"),
+            (date(year, 4, 1), "April Fools' Day"),
+            (easter, "Easter Sunday"),
+            (nth_weekday(5, 6, 2), "Mother's Day"),
+            (date(year, 6, 14), "Flag Day"),
+            (nth_weekday(6, 6, 3), "Father's Day"),
+            (date(year, 10, 31), "Halloween"),
+            (date(year, 12, 31), "New Year's Eve"),
+        ]

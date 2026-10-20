@@ -21,6 +21,9 @@ Dashboard" channel from inside Home Assistant:
   for the Roku's scrollable agenda.
 - 🇺🇸 **US federal holidays** — optionally adds federal holidays and weekend
   observed dates locally, without another calendar account or cloud API.
+- 💝 **Common US observances** — optionally adds Groundhog Day, Valentine's
+  Day, Mardi Gras, St. Patrick's Day, April Fools' Day, Easter, Mother's Day,
+  Flag Day, Father's Day, Halloween, and New Year's Eve.
 - 🎨 **Backgrounds** — fall, winter, spring, summer presets, or your own
   image URL (served from `/local/...`).
 - 🧱 **Layout presets** — `home`, `compact`, `meals_first` (and room for more

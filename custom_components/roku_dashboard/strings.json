@@ -21,7 +21,8 @@
           "scene_entities": "Controllable scenes and scripts",
           "climate_tab_enabled": "Enable Climate tab",
           "climate_entities": "Controllable climate entities",
-          "us_holidays_enabled": "Add US federal holidays"
+          "us_holidays_enabled": "Add US federal holidays",
+          "us_observances_enabled": "Add common US observances"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
@@ -38,7 +39,8 @@
           "scene_entities": "Only selected scenes and scripts can be activated from Roku.",
           "climate_tab_enabled": "Adds the Climate control tab to Roku.",
           "climate_entities": "Only selected thermostats can be controlled from Roku.",
-          "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar."
+          "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar.",
+          "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances."
         }
       },
       "init": {
@@ -61,7 +63,8 @@
           "scene_entities": "Controllable scenes and scripts",
           "climate_tab_enabled": "Enable Climate tab",
           "climate_entities": "Controllable climate entities",
-          "us_holidays_enabled": "Add US federal holidays"
+          "us_holidays_enabled": "Add US federal holidays",
+          "us_observances_enabled": "Add common US observances"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
@@ -78,7 +81,8 @@
           "scene_entities": "Only selected scenes and scripts can be activated from Roku.",
           "climate_tab_enabled": "Adds the Climate control tab to Roku.",
           "climate_entities": "Only selected thermostats can be controlled from Roku.",
-          "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar."
+          "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar.",
+          "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances."
         }
       }
     },
@@ -147,13 +151,15 @@
           "indoor_entity": "Indoor temperature entity",
           "calendar_entities": "Calendars to display (optional)",
           "meal_entity": "Meal plan helper",
-          "us_holidays_enabled": "Add US federal holidays"
+          "us_holidays_enabled": "Add US federal holidays",
+          "us_observances_enabled": "Add common US observances"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
           "calendar_entities": "Only events from the selected calendars are shown on the Home tab. Leave empty to show all calendars.",
           "meal_entity": "Text helper shown in the meal-plan panel.",
-          "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar."
+          "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar.",
+          "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances."
         }
       },
       "weather": {
