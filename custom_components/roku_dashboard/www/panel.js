@@ -25,6 +25,7 @@ class FamilyDashboardPanel extends HTMLElement{
     this._timer=null;
     this._clock=null;
     this._backgroundUrl='';
+    this._idleTimer=null;
   }
 
   set hass(hass){this._hass=hass;if(this.isConnected)this._updateAccess()}
@@ -38,9 +39,10 @@ class FamilyDashboardPanel extends HTMLElement{
     loadHelpers().then(()=>this._refresh()).catch(error=>console.error(error));
     this._timer=setInterval(()=>this._refresh(),15000);
     this._clock=setInterval(()=>this._updateClock(),1000);
+    this._resetIdle();
   }
 
-  disconnectedCallback(){clearInterval(this._timer);clearInterval(this._clock);this._timer=null;this._clock=null}
+  disconnectedCallback(){clearInterval(this._timer);clearInterval(this._clock);clearTimeout(this._idleTimer);this._timer=null;this._clock=null;this._idleTimer=null}
 
   _updateAccess(){
     const edit=this.shadowRoot.querySelector('#edit');
@@ -61,7 +63,7 @@ class FamilyDashboardPanel extends HTMLElement{
         <header>
           <div><h1 id="dashboardTitle">Family Dashboard</h1><div id="clock"></div></div>
           <nav id="tabs" aria-label="Dashboard tabs"></nav>
-          <div class="header-actions"><button id="edit" title="Change the dashboard settings">⚙ Settings</button></div>
+          <div class="header-actions"><button id="edit" class="icon-button" title="Change the dashboard settings" aria-label="Change dashboard settings"><img src="${ASSET}mdi/settings.svg" alt=""></button></div>
         </header>
         <div id="notice" role="status" hidden></div>
         <main id="content"><div class="loading">Loading…</div></main>
@@ -71,6 +73,11 @@ class FamilyDashboardPanel extends HTMLElement{
         <div id="weeklyMeals" class="week-meals"></div>
         <button id="saveMeals" class="primary">Save week</button>
         <button id="closeMeals">Cancel</button>
+      </dialog>
+      <dialog id="todayDialog">
+        <h2>Today’s Events</h2>
+        <div id="todayEvents" class="dialog-events"></div>
+        <button id="closeToday" class="primary">Close</button>
       </dialog>
       <dialog id="settingsDialog">
         <form id="settingsForm">
@@ -83,8 +90,16 @@ class FamilyDashboardPanel extends HTMLElement{
     root.querySelector('#closeSettings').onclick=()=>root.querySelector('#settingsDialog').close();
     root.querySelector('#closeMeals').onclick=()=>root.querySelector('#mealDialog').close();
     root.querySelector('#saveMeals').onclick=()=>this._saveMeals();
+    root.querySelector('#closeToday').onclick=()=>root.querySelector('#todayDialog').close();
+    root.addEventListener('pointerdown',()=>this._resetIdle(),{passive:true});
+    root.addEventListener('keydown',()=>this._resetIdle(),{passive:true});
     root.querySelector('#settingsForm').onsubmit=e=>{e.preventDefault();this._saveSettings()};
     this._updateClock();
+  }
+
+  _resetIdle(){
+    clearTimeout(this._idleTimer);
+    this._idleTimer=setTimeout(()=>{this._tab='home';this._renderNav();this._render();this.scrollTo({top:0,behavior:'smooth'})},300000);
   }
 
   _updateClock(){
@@ -148,7 +163,7 @@ class FamilyDashboardPanel extends HTMLElement{
     if(!nav||!this._data)return;
     const tabs=window.FamilyDashboard.enabledTabs(this._data);
     if(!tabs.some(([id])=>id===this._tab))this._tab='home';
-    nav.innerHTML=tabs.map(([id,label])=>`<button data-tab="${id}" class="${id===this._tab?'active':''}">${label}</button>`).join('');
+    nav.innerHTML=tabs.map(([id,label,icon])=>`<button data-tab="${id}" class="tab-button ${id===this._tab?'active':''}" title="${window.FamilyDashboard.esc(label)}" aria-label="${window.FamilyDashboard.esc(label)}"><img src="${window.FamilyDashboard.mdi(icon)}" alt=""></button>`).join('');
     nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{this._tab=b.dataset.tab;this._renderNav();this._render()});
   }
 
@@ -173,6 +188,8 @@ class FamilyDashboardPanel extends HTMLElement{
     root.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>run({action:'climate_mode',entity_id:b.dataset.id,value:b.dataset.mode}));
     const meal=root.querySelector('#mealPanel');
     if(meal)meal.onclick=()=>this._openMeals();
+    const today=root.querySelector('#todayPanel');
+    if(today)today.onclick=()=>this._openToday();
   }
 
   async _action(body){
@@ -197,6 +214,13 @@ class FamilyDashboardPanel extends HTMLElement{
       await this._action({action:'meal_week',value:values});
       this.shadowRoot.querySelector('#mealDialog').close();
     }catch(error){this._showNotice(`Control error: ${error.message||error}`)}
+  }
+
+  _openToday(){
+    const events=(this._data&&this._data.today_events)||((this._data&&this._data.calendar_events)||[]);
+    const box=this.shadowRoot.querySelector('#todayEvents');
+    box.innerHTML=events.length?events.map(window.FamilyDashboard.eventHTML).join(''):'<div class="empty compact">No events today</div>';
+    this.shadowRoot.querySelector('#todayDialog').showModal();
   }
 
   /* ------------------------------------------------------------------ */

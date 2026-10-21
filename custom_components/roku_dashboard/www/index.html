@@ -15,7 +15,7 @@
     <header>
       <div><h1 id="dashboardTitle">Family Dashboard</h1><div id="clock"></div></div>
       <nav id="tabs" aria-label="Dashboard tabs"></nav>
-      <div class="header-actions"><button id="wake" title="Keep screen awake">☀ Awake</button><button id="settings" title="Connection settings">⚙</button></div>
+      <div class="header-actions"><button id="wake" title="Keep screen awake">☀ Awake</button><button id="settings" class="icon-button" title="Connection settings" aria-label="Connection settings"><img src="/family-dashboard/mdi/settings.svg" alt=""></button></div>
     </header>
     <div id="notice" role="status" hidden></div>
     <main id="content"><div class="loading">Loading…</div></main>
@@ -34,6 +34,11 @@
     <div id="weeklyMeals" class="week-meals"></div>
     <button id="saveMeals" class="primary">Save week</button>
     <button id="closeMeals">Cancel</button>
+  </dialog>
+  <dialog id="todayDialog">
+    <h2>Today’s Events</h2>
+    <div id="todayEvents" class="dialog-events"></div>
+    <button id="closeToday" class="primary">Close</button>
   </dialog>
   <script src="/family-dashboard/dashboard.js"></script>
   <script type="module" src="/family-dashboard/app.js"></script>

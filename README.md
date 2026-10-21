@@ -8,6 +8,16 @@ Dashboard" channel from inside Home Assistant:
 It also includes an interactive, installable web app at `/family-dashboard`
 with the same Home, Calendar, Weather, Lights, Scenes, and Climate experience.
 
+The interface uses a curated subset of
+[Material Design Icons](https://pictogrammers.com/library/mdi/) for tabs,
+weather conditions, HVAC modes, settings, and detail affordances. Only used
+icons are bundled; their Apache 2.0 license is included under `www/mdi/LICENSE`.
+
+The Home screen uses clickable affordance icons for Today and Meal Plan,
+full-day event and weekly meal dialogs, centered condition artwork, and a
+responsive Skylight-inspired schedule. On phones, day columns scroll and snap
+horizontally; larger displays show the configured week together.
+
 - 🍽️ **Creates and owns the meal-planner helper** — an `input_text`
   (`input_text.roku_dashboard_meal_plan`) is created for you, editable from
   the HA UI (Helpers), automations, or the `roku_dashboard.set_meal_plan`
