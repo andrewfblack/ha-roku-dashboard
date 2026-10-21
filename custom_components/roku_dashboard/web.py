@@ -55,6 +55,7 @@ class FamilyDashboardAssetView(HomeAssistantView):
             and asset.startswith("mdi/")
             and asset.endswith(".svg")
             and Path(asset).name == asset.split("/")[-1]
+            and (_ROOT / asset).is_file()
         ):
             content_type = "image/svg+xml"
         if content_type is None:

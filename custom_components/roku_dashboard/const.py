@@ -2,6 +2,31 @@
 
 DOMAIN = "roku_dashboard"
 
+# API namespaces. "family_dashboard" is the canonical namespace used by every
+# client; "roku_dashboard" stays as an alias so already-sideloaded Roku
+# channels keep working.
+API_NAMESPACE = "family_dashboard"
+LEGACY_API_NAMESPACE = "roku_dashboard"
+
+# Per-device credential store (device id -> token, name, platform).
+DEVICE_STORE_KEY = f"{DOMAIN}_devices"
+DEVICE_STORE_VERSION = 1
+DATA_DEVICES = "devices"
+DATA_STREAM = "stream"
+
+# Device-initiated pairing.
+PAIRING_CODE_LENGTH = 8
+PAIRING_CODE_TTL = 300
+PAIRING_POLL_INTERVAL = 3
+PAIRING_REQUEST_LIMIT = 10
+DEVICE_TOUCH_INTERVAL = 300
+
+# Platform identifiers a client can report when it asks to pair.
+PLATFORMS = ("ios", "tvos", "roku", "web", "android", "legacy", "unknown")
+
+# Version of the dashboard payload contract. Bump when the shape changes.
+PAYLOAD_SCHEMA_VERSION = 2
+
 CONF_INDOOR_ENTITY = "indoor_entity"
 CONF_OUTDOOR_ENTITY = "outdoor_entity"
 CONF_MEAL_ENTITY = "meal_entity"
@@ -10,6 +35,7 @@ CONF_LAYOUT = "layout"
 CONF_CALENDAR_ENTITIES = "calendar_entities"
 CONF_PAIRING_CODE = "pairing_code"
 CONF_DEVICE_TOKEN = "device_token"
+CONF_LEGACY_TOKEN_REVOKED = "legacy_token_revoked"
 CONF_WEATHER_TAB_ENABLED = "weather_tab_enabled"
 CONF_FORECAST_TYPE = "forecast_type"
 CONF_FORECAST_COUNT = "forecast_count"
@@ -39,6 +65,33 @@ CONF_MEAL_FRIDAY = "meal_friday"
 CONF_MEAL_SATURDAY = "meal_saturday"
 CONF_MEAL_SUNDAY = "meal_sunday"
 CONF_PANEL_ENABLED = "panel_enabled"
+CONF_THEME_HEADER_TEXT = "theme_header_text"
+CONF_THEME_ITEM_HEADER_TEXT = "theme_item_header_text"
+CONF_THEME_BODY_TEXT = "theme_body_text"
+CONF_THEME_MUTED_TEXT = "theme_muted_text"
+CONF_THEME_ACCENT = "theme_accent"
+CONF_THEME_BACKGROUND = "theme_background"
+CONF_THEME_ITEM_BACKGROUND = "theme_item_background"
+CONF_THEME_SELECTED_BACKGROUND = "theme_selected_background"
+CONF_THEME_SELECTED_BORDER = "theme_selected_border"
+CONF_THEME_ITEM_BORDER = "theme_item_border"
+CONF_THEME_ITEM_OPACITY = "theme_item_opacity"
+CONF_THEME_BACKGROUND_OVERLAY = "theme_background_overlay"
+
+THEME_DEFAULTS = {
+    CONF_THEME_HEADER_TEXT: [255, 247, 234],
+    CONF_THEME_ITEM_HEADER_TEXT: [239, 178, 108],
+    CONF_THEME_BODY_TEXT: [255, 247, 234],
+    CONF_THEME_MUTED_TEXT: [205, 189, 169],
+    CONF_THEME_ACCENT: [225, 138, 69],
+    CONF_THEME_BACKGROUND: [23, 16, 11],
+    CONF_THEME_ITEM_BACKGROUND: [31, 23, 17],
+    CONF_THEME_SELECTED_BACKGROUND: [155, 84, 43],
+    CONF_THEME_SELECTED_BORDER: [255, 210, 140],
+    CONF_THEME_ITEM_BORDER: [89, 72, 60],
+    CONF_THEME_ITEM_OPACITY: 90,
+    CONF_THEME_BACKGROUND_OVERLAY: 48,
+}
 
 # Form-only key: the "back to the options menu" toggle in every section form.
 FORM_BACK = "back_to_menu"

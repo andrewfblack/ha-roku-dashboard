@@ -24,6 +24,7 @@ from .const import (
     CONF_PANEL_ENABLED,
     CONF_PAIRING_CODE,
     CONF_DEVICE_TOKEN,
+    CONF_LEGACY_TOKEN_REVOKED,
     DOMAIN,
     MEAL_HELPER_ENTITY,
     MEAL_HELPER_KEY,
@@ -31,14 +32,26 @@ from .const import (
     STORAGE_VERSION,
 )
 from .services import async_setup_services
+from . import pairing
 from .api import (
+    FamilyDashboardActionView,
+    FamilyDashboardBackgroundView,
+    FamilyDashboardDataView,
+    FamilyDashboardPairingCodeView,
+    FamilyDashboardPairingRequestView,
+    FamilyDashboardPairingStatusView,
+    FamilyDashboardStreamView,
+    FamilyDashboardTokenDataView,
     RokuDashboardActionView,
     RokuDashboardBackgroundView,
     RokuDashboardView,
+    setup_state_stream,
+    stream_hub,
 )
 from .panel import (
     FamilyDashboardPanelActionView,
     FamilyDashboardPanelBackgroundView,
+    FamilyDashboardPanelPairingView,
     FamilyDashboardPanelSettingsView,
     FamilyDashboardPanelView,
     async_setup_panel,
@@ -55,6 +68,17 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the Family Dashboard component (services are registered here)."""
     hass.data.setdefault(DOMAIN, {})
     async_setup_services(hass)
+    await pairing.async_load(hass)
+
+    # Fixed routes are registered before the catch-all credential route so
+    # "device", "stream" and "pairing" are never read as a credential.
+    hass.http.register_view(FamilyDashboardPairingRequestView(hass))
+    hass.http.register_view(FamilyDashboardPairingStatusView(hass))
+    hass.http.register_view(FamilyDashboardPairingCodeView(hass))
+    hass.http.register_view(FamilyDashboardStreamView(hass))
+    hass.http.register_view(FamilyDashboardDataView(hass))
+    hass.http.register_view(FamilyDashboardActionView(hass))
+    hass.http.register_view(FamilyDashboardBackgroundView(hass))
     hass.http.register_view(RokuDashboardView(hass))
     hass.http.register_view(RokuDashboardActionView(hass))
     hass.http.register_view(RokuDashboardBackgroundView(hass))
@@ -64,6 +88,9 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     hass.http.register_view(FamilyDashboardPanelActionView(hass))
     hass.http.register_view(FamilyDashboardPanelSettingsView(hass))
     hass.http.register_view(FamilyDashboardPanelBackgroundView(hass))
+    hass.http.register_view(FamilyDashboardPanelPairingView(hass))
+    # The catch-all credential route has to be registered last.
+    hass.http.register_view(FamilyDashboardTokenDataView(hass))
     return True
 
 
@@ -79,7 +106,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         data = dict(entry.data)
         data[CONF_PAIRING_CODE] = secrets.token_hex(4).upper()
         hass.config_entries.async_update_entry(entry, data=data)
-    if not entry.data.get(CONF_DEVICE_TOKEN):
+    if not entry.data.get(CONF_DEVICE_TOKEN) and not entry.data.get(
+        CONF_LEGACY_TOKEN_REVOKED
+    ):
         data = dict(entry.data)
         data[CONF_DEVICE_TOKEN] = secrets.token_hex(32).upper()
         hass.config_entries.async_update_entry(entry, data=data)
@@ -125,6 +154,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_update_listener))
     await _async_setup_panel(hass, entry)
+    await setup_state_stream(hass, entry)
     return True
 
 
@@ -152,6 +182,8 @@ async def _async_setup_panel(
 
 async def _update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload the entry when options change."""
+    # Tell the connected clients that the dashboard changed underneath them.
+    stream_hub(hass).publish("refresh", {"reason": "options_changed"})
     await hass.config_entries.async_reload(entry.entry_id)
 
 

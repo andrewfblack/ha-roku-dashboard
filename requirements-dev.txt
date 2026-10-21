@@ -1,0 +1,12 @@
+# Test dependencies for the Family Dashboard integration.
+#
+# The tests stub Home Assistant, so only the web framework and the test
+# runner are needed:
+#
+#   python -m venv .venv
+#   .venv/bin/pip install -r requirements-dev.txt
+#   .venv/bin/python -m pytest
+#
+aiohttp>=3.9
+pytest>=8.0
+pytest-asyncio>=0.23

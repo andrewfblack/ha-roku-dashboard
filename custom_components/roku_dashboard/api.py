@@ -1,22 +1,36 @@
-"""Local pairing API consumed by the Roku channel."""
+"""Local API consumed by every Family Dashboard client.
+
+The canonical namespace is ``/api/family_dashboard``. The older
+``/api/roku_dashboard`` namespace stays available so already-sideloaded Roku
+channels keep working without a reinstall.
+
+Clients authenticate with a per-device credential, either as an
+``Authorization: Bearer`` header or as a URL path segment. Tokens in headers
+are preferred: a token in the path ends up in access logs.
+"""
 
 from __future__ import annotations
 
+import asyncio
 from calendar import monthrange
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+import json
 import logging
 import mimetypes
 import ipaddress
 from pathlib import Path
 import secrets
+import time
 from typing import Any
 
 from aiohttp import web
 
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import callback
 from homeassistant.util import dt as dt_util
 
+from . import pairing
 from .const import (
     CONF_ACCESS_MODE,
     CONF_BACKGROUND,
@@ -47,10 +61,215 @@ from .const import (
     CONF_CLIMATE_ENTITIES,
     CONF_US_HOLIDAYS_ENABLED,
     CONF_US_OBSERVANCES_ENABLED,
+    CONF_THEME_HEADER_TEXT,
+    CONF_THEME_ITEM_HEADER_TEXT,
+    CONF_THEME_BODY_TEXT,
+    CONF_THEME_MUTED_TEXT,
+    CONF_THEME_ACCENT,
+    CONF_THEME_BACKGROUND,
+    CONF_THEME_ITEM_BACKGROUND,
+    CONF_THEME_SELECTED_BACKGROUND,
+    CONF_THEME_SELECTED_BORDER,
+    CONF_THEME_ITEM_BORDER,
+    CONF_THEME_ITEM_OPACITY,
+    CONF_THEME_BACKGROUND_OVERLAY,
+    API_NAMESPACE,
+    DATA_STREAM,
     DOMAIN,
+    PAIRING_CODE_TTL,
+    PAIRING_POLL_INTERVAL,
+    PAYLOAD_SCHEMA_VERSION,
+    THEME_DEFAULTS,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _theme_color(options: dict[str, Any], key: str) -> str:
+    """Return a validated RGB option as a CSS-compatible hex color."""
+    value = options.get(key, THEME_DEFAULTS[key])
+    if not isinstance(value, (list, tuple)) or len(value) != 3:
+        value = THEME_DEFAULTS[key]
+    rgb = [max(0, min(255, int(channel))) for channel in value]
+    return "#" + "".join(f"{channel:02X}" for channel in rgb)
+
+
+def _theme_data(options: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "header_text": _theme_color(options, CONF_THEME_HEADER_TEXT),
+        "item_header_text": _theme_color(options, CONF_THEME_ITEM_HEADER_TEXT),
+        "body_text": _theme_color(options, CONF_THEME_BODY_TEXT),
+        "muted_text": _theme_color(options, CONF_THEME_MUTED_TEXT),
+        "accent": _theme_color(options, CONF_THEME_ACCENT),
+        "background": _theme_color(options, CONF_THEME_BACKGROUND),
+        "item_background": _theme_color(options, CONF_THEME_ITEM_BACKGROUND),
+        "selected_background": _theme_color(options, CONF_THEME_SELECTED_BACKGROUND),
+        "selected_border": _theme_color(options, CONF_THEME_SELECTED_BORDER),
+        "item_border": _theme_color(options, CONF_THEME_ITEM_BORDER),
+        "item_opacity": max(0, min(100, int(options.get(CONF_THEME_ITEM_OPACITY, THEME_DEFAULTS[CONF_THEME_ITEM_OPACITY])))),
+        "background_overlay": max(0, min(100, int(options.get(CONF_THEME_BACKGROUND_OVERLAY, THEME_DEFAULTS[CONF_THEME_BACKGROUND_OVERLAY])))),
+    }
+
+
+def _bearer_token(request) -> str:
+    """Return the credential from the Authorization header."""
+    header = request.headers.get("Authorization", "")
+    if header[:7].lower() == "bearer ":
+        return header[7:].strip()
+    return ""
+
+
+def _request_token(request, path_token: str = "") -> str:
+    """Return the credential from the header, falling back to the URL path."""
+    return _bearer_token(request) or str(path_token or "")
+
+
+def _entry_for_id(hass, entry_id: str):
+    """Return the config entry with an id."""
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if entry.entry_id == entry_id:
+            return entry
+    return None
+
+
+def _first_entry(hass):
+    """Return the first Family Dashboard config entry."""
+    entries = hass.config_entries.async_entries(DOMAIN)
+    return entries[0] if entries else None
+
+
+def entry_for_pairing_code(hass, code: str):
+    """Return the config entry whose short pairing code matches."""
+    if not code:
+        return None
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if secrets.compare_digest(
+            str(entry.data.get(CONF_PAIRING_CODE, "")), code.upper()
+        ):
+            return entry
+    return None
+
+
+def entry_for_legacy_token(hass, token: str):
+    """Return the config entry that owns the shared token used before 0.13.
+
+    Installs that paired before per-device credentials existed only know this
+    one token, so it has to keep working.
+    """
+    if not token:
+        return None
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if secrets.compare_digest(
+            str(entry.data.get(CONF_DEVICE_TOKEN, "")), token.upper()
+        ):
+            return entry
+    return None
+
+
+async def _resolve_client(hass, request, path_token: str = ""):
+    """Return the (entry, device) a request belongs to."""
+    token = _request_token(request, path_token)
+    if not token:
+        return None, None
+    device = pairing.find_by_token(hass, token.upper())
+    if device is not None:
+        entry = _entry_for_id(hass, device.get("entry_id", "")) or _first_entry(hass)
+        return entry, device
+    return entry_for_legacy_token(hass, token), None
+
+
+class FamilyDashboardDataView(HomeAssistantView):
+    """Serve the dashboard payload to a paired client."""
+
+    url = f"/api/{API_NAMESPACE}/device"
+    name = "api:family_dashboard_device"
+    requires_auth = False
+
+    def __init__(self, hass) -> None:
+        self.hass = hass
+
+    async def get(self, request):
+        """Return the dashboard data for the calling device."""
+        entry, device = await _resolve_client(self.hass, request)
+        if entry is None:
+            return self.json({"error": "invalid_token"}, status_code=401)
+        if not request_allowed(request, entry, pairing=False):
+            return self.json({"error": "network_access_denied"}, status_code=403)
+        payload = await async_dashboard_payload(self.hass, entry)
+        if device is not None:
+            await pairing.async_touch(self.hass, device)
+            payload["device_id"] = device["device_id"]
+        return self.json(payload)
+
+
+class FamilyDashboardTokenDataView(HomeAssistantView):
+    """Serve the dashboard payload when the credential is part of the URL."""
+
+    url = f"/api/{API_NAMESPACE}/{{token}}"
+    name = "api:family_dashboard_token"
+    requires_auth = False
+
+    def __init__(self, hass) -> None:
+        self.hass = hass
+
+    async def get(self, request, token: str = ""):
+        """Return the dashboard data for the calling device."""
+        entry, device = await _resolve_client(self.hass, request, token)
+        if entry is None:
+            return self.json({"error": "invalid_token"}, status_code=401)
+        if not request_allowed(request, entry, pairing=False):
+            return self.json({"error": "network_access_denied"}, status_code=403)
+        payload = await async_dashboard_payload(self.hass, entry)
+        if device is not None:
+            await pairing.async_touch(self.hass, device)
+            payload["device_id"] = device["device_id"]
+        return self.json(payload)
+
+
+class FamilyDashboardActionView(HomeAssistantView):
+    """Run dashboard control commands for a paired client."""
+
+    url = f"/api/{API_NAMESPACE}/device/action"
+    name = "api:family_dashboard_device_action"
+    requires_auth = False
+
+    def __init__(self, hass) -> None:
+        self.hass = hass
+
+    async def post(self, request):
+        """Execute an allowlisted dashboard command."""
+        entry, _device = await _resolve_client(self.hass, request)
+        if entry is None:
+            return self.json({"error": "invalid_token"}, status_code=401)
+        if not request_allowed(request, entry, pairing=False):
+            return self.json({"error": "network_access_denied"}, status_code=403)
+        try:
+            body = await request.json()
+        except Exception:
+            return self.json({"error": "invalid_json"}, status_code=400)
+
+        result, status = await async_execute_action(self.hass, entry, body)
+        return self.json(result, status_code=status)
+
+
+class FamilyDashboardBackgroundView(HomeAssistantView):
+    """Serve the uploaded background to a paired client."""
+
+    url = f"/api/{API_NAMESPACE}/device/background"
+    name = "api:family_dashboard_device_background"
+    requires_auth = False
+
+    def __init__(self, hass) -> None:
+        self.hass = hass
+
+    async def get(self, request):
+        """Return the uploaded background image."""
+        entry, _device = await _resolve_client(self.hass, request)
+        if entry is None:
+            return self.json({"error": "invalid_token"}, status_code=401)
+        if not request_allowed(request, entry, pairing=False):
+            return self.json({"error": "network_access_denied"}, status_code=403)
+        return await _background_response(self.hass, entry)
 
 
 class RokuDashboardView(HomeAssistantView):
@@ -64,11 +283,12 @@ class RokuDashboardView(HomeAssistantView):
         self.hass = hass
 
     async def get(self, request, code: str):
-        entry = self._entry_for_code(code)
+        token = _request_token(request, code)
+        entry = self._entry_for_code(token)
         if entry is None:
             return self.json({"error": "invalid_pairing_code"}, status_code=401)
         is_pairing = secrets.compare_digest(
-            str(entry.data.get(CONF_PAIRING_CODE, "")), code.upper()
+            str(entry.data.get(CONF_PAIRING_CODE, "")), token.upper()
         )
         if not request_allowed(request, entry, pairing=is_pairing):
             return self.json({"error": "network_access_denied"}, status_code=403)
@@ -77,10 +297,12 @@ class RokuDashboardView(HomeAssistantView):
 
         # Exchange the human-friendly code once for a strong device token,
         # then rotate the short code. Control POSTs never accept short codes.
-        if secrets.compare_digest(
-            str(entry.data.get(CONF_PAIRING_CODE, "")), code.upper()
-        ):
-            payload["device_token"] = entry.data[CONF_DEVICE_TOKEN]
+        if is_pairing:
+            device = await pairing.async_add_device(
+                self.hass, "Roku", "roku", legacy=True
+            )
+            payload["device_token"] = device["token"]
+            payload["device_id"] = device["device_id"]
             data = dict(entry.data)
             data[CONF_PAIRING_CODE] = secrets.token_hex(4).upper()
             self.hass.config_entries.async_update_entry(entry, data=data)
@@ -91,14 +313,13 @@ class RokuDashboardView(HomeAssistantView):
 
     async def post(self, request, code: str):
         """Execute an allowlisted dashboard command."""
-        entry = self._entry_for_code(code)
+        token = _request_token(request, code)
+        entry = self._entry_for_code(token)
         if entry is None:
             return self.json({"error": "invalid_pairing_code"}, status_code=401)
         if not request_allowed(request, entry, pairing=False):
             return self.json({"error": "network_access_denied"}, status_code=403)
-        if not secrets.compare_digest(
-            str(entry.data.get(CONF_DEVICE_TOKEN, "")), code.upper()
-        ):
+        if not self._is_credential(entry, token):
             return self.json({"error": "pairing_required"}, status_code=403)
         try:
             body = await request.json()
@@ -107,6 +328,279 @@ class RokuDashboardView(HomeAssistantView):
 
         result, status = await async_execute_action(self.hass, entry, body)
         return self.json(result, status_code=status)
+
+    def _is_credential(self, entry, token: str) -> bool:
+        """Return True when the token is a device credential, not a short code."""
+        if secrets.compare_digest(
+            str(entry.data.get(CONF_DEVICE_TOKEN, "")), token.upper()
+        ):
+            return True
+        return pairing.find_by_token(self.hass, token.upper()) is not None
+
+
+class FamilyDashboardPairingRequestView(HomeAssistantView):
+    """Start a device-initiated pairing request.
+
+    The client shows the returned code and waits for an administrator to
+    approve it in the Home Assistant panel. This is the only pairing flow
+    that works on a device without a keyboard, such as Apple TV.
+    """
+
+    url = f"/api/{API_NAMESPACE}/pairing/request"
+    name = "api:family_dashboard_pairing_request"
+    requires_auth = False
+
+    def __init__(self, hass) -> None:
+        self.hass = hass
+
+    async def post(self, request):
+        """Create a pending pairing request."""
+        entry = _first_entry(self.hass)
+        if entry is None:
+            return self.json({"error": "not_configured"}, status_code=404)
+        if not request_allowed(request, entry, pairing=True):
+            return self.json({"error": "network_access_denied"}, status_code=403)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        record = await pairing.async_create_request(
+            self.hass,
+            name=body.get("device_name") or body.get("name") or "",
+            platform=body.get("platform") or body.get("device_type") or "",
+            app_version=body.get("app_version") or "",
+            remote=request.remote or "",
+        )
+        return self.json(
+            {
+                "device_code": record["device_code"],
+                "expires_in": PAIRING_CODE_TTL,
+                "poll_interval": PAIRING_POLL_INTERVAL,
+            }
+        )
+
+
+class FamilyDashboardPairingStatusView(HomeAssistantView):
+    """Report the state of a pairing request."""
+
+    url = f"/api/{API_NAMESPACE}/pairing/status"
+    name = "api:family_dashboard_pairing_status"
+    requires_auth = False
+
+    def __init__(self, hass) -> None:
+        self.hass = hass
+
+    async def get(self, request):
+        """Return the status of a pairing request."""
+        code = request.query.get("device_code", "")
+        record = pairing.get_request(self.hass, code)
+        if record is None:
+            return self.json({"error": "unknown_device_code"}, status_code=404)
+        # The poll hands out the device credential, so it follows the same
+        # network policy as the request that started the pairing.
+        entry = _entry_for_id(self.hass, record.get("entry_id", "")) or _first_entry(
+            self.hass
+        )
+        if entry is None or not request_allowed(request, entry, pairing=True):
+            return self.json({"error": "network_access_denied"}, status_code=403)
+        status = record.get("status")
+        body: dict[str, Any] = {"status": status}
+        if status == pairing.APPROVED:
+            token = await pairing.async_claim_token(self.hass, code)
+            body["status"] = "approved"
+            body["device_token"] = token
+        body["expires_in"] = max(
+            0, int(float(record.get("expires", 0)) - time.time())
+        )
+        return self.json(body)
+
+
+class FamilyDashboardPairingCodeView(HomeAssistantView):
+    """Exchange the legacy short pairing code for a device credential.
+
+    Devices with a keyboard can still type the short code shown in Home
+    Assistant. New clients should prefer the device-initiated flow.
+    """
+
+    url = f"/api/{API_NAMESPACE}/pairing/code"
+    name = "api:family_dashboard_pairing_code"
+    requires_auth = False
+
+    def __init__(self, hass) -> None:
+        self.hass = hass
+
+    async def post(self, request):
+        """Trade the short pairing code for a device credential."""
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        code = str(body.get("code", "")).strip().upper()
+        entry = entry_for_pairing_code(self.hass, code)
+        if entry is None:
+            return self.json({"error": "invalid_pairing_code"}, status_code=401)
+        if not request_allowed(request, entry, pairing=True):
+            return self.json({"error": "network_access_denied"}, status_code=403)
+        device = await pairing.async_add_device(
+            self.hass,
+            body.get("device_name") or "Unknown device",
+            body.get("platform") or "unknown",
+        )
+        # Rotate the short code so it cannot be reused.
+        data = dict(entry.data)
+        data[CONF_PAIRING_CODE] = secrets.token_hex(4).upper()
+        self.hass.config_entries.async_update_entry(entry, data=data)
+        return self.json(
+            {"device_token": device["token"], "device_id": device["device_id"]}
+        )
+
+
+class StreamHub:
+    """Fan dashboard updates out to the connected clients."""
+
+    def __init__(self) -> None:
+        """Start with no subscribers."""
+        self._subscribers: set[asyncio.Queue] = set()
+
+    def subscribe(self) -> asyncio.Queue:
+        """Register a new subscriber."""
+        queue: asyncio.Queue = asyncio.Queue(maxsize=50)
+        self._subscribers.add(queue)
+        return queue
+
+    def unsubscribe(self, queue: asyncio.Queue) -> None:
+        """Drop a subscriber."""
+        self._subscribers.discard(queue)
+
+    def publish(self, event: str, data: dict[str, Any]) -> None:
+        """Send an event to every subscriber."""
+        for queue in list(self._subscribers):
+            try:
+                queue.put_nowait((event, data))
+            except asyncio.QueueFull:
+                # A slow client loses the oldest update, never the stream.
+                try:
+                    queue.get_nowait()
+                    queue.put_nowait((event, data))
+                except asyncio.QueueEmpty:  # pragma: no cover - race guard
+                    pass
+
+
+def stream_hub(hass) -> StreamHub:
+    """Return the stream hub for this Home Assistant instance."""
+    data = hass.data.setdefault(DOMAIN, {})
+    hub = data.get(DATA_STREAM)
+    if hub is None:
+        hub = StreamHub()
+        data[DATA_STREAM] = hub
+    return hub
+
+
+async def _sse_write(response, event: str, data: dict[str, Any]) -> None:
+    """Write one server-sent event."""
+    payload = json.dumps(data, default=str)
+    await response.write(f"event: {event}\ndata: {payload}\n\n".encode())
+
+
+def tracked_entities(entry) -> set[str]:
+    """Return the entity ids the dashboard displays."""
+    options = entry.options
+    entity_ids: set[str] = set()
+    for key in (
+        CONF_INDOOR_ENTITY,
+        CONF_INDOOR_HUMIDITY_ENTITY,
+        CONF_OUTDOOR_ENTITY,
+        CONF_MEAL_ENTITY,
+    ):
+        value = str(options.get(key, "") or "")
+        if value:
+            entity_ids.add(value)
+    for key in (CONF_LIGHT_ENTITIES, CONF_SCENE_ENTITIES, CONF_CLIMATE_ENTITIES):
+        entity_ids.update(_as_list(options.get(key, [])))
+    return entity_ids
+
+
+class FamilyDashboardStreamView(HomeAssistantView):
+    """Push dashboard updates to a paired client over server-sent events.
+
+    Home Assistant's own websocket API needs a long-lived access token, which
+    is far too much authority to hand a television. This stream is scoped to
+    the entities the dashboard already shows.
+    """
+
+    url = f"/api/{API_NAMESPACE}/stream"
+    name = "api:family_dashboard_stream"
+    requires_auth = False
+
+    def __init__(self, hass) -> None:
+        self.hass = hass
+
+    async def get(self, request):
+        """Stream updates until the client disconnects."""
+        entry, device = await _resolve_client(self.hass, request)
+        if entry is None:
+            return self.json({"error": "invalid_token"}, status_code=401)
+        if not request_allowed(request, entry, pairing=False):
+            return self.json({"error": "network_access_denied"}, status_code=403)
+
+        response = web.StreamResponse(
+            status=200,
+            headers={
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-store",
+                "Connection": "keep-alive",
+                # Stop reverse proxies from buffering the stream.
+                "X-Accel-Buffering": "no",
+            },
+        )
+        await response.prepare(request)
+        hub = stream_hub(self.hass)
+        queue = hub.subscribe()
+        try:
+            payload = await async_dashboard_payload(self.hass, entry)
+            if device is not None:
+                payload["device_id"] = device["device_id"]
+                await pairing.async_touch(self.hass, device)
+            await _sse_write(response, "dashboard", payload)
+            while True:
+                try:
+                    event, data = await asyncio.wait_for(queue.get(), timeout=25)
+                except asyncio.TimeoutError:
+                    await response.write(b": keepalive\n\n")
+                    continue
+                await _sse_write(response, event, data)
+        except (ConnectionResetError, ConnectionAbortedError):
+            _LOGGER.debug("Family Dashboard stream client disconnected")
+        finally:
+            hub.unsubscribe(queue)
+        return response
+
+
+async def setup_state_stream(hass, entry) -> None:
+    """Publish state changes for the dashboard entities to stream clients."""
+    from homeassistant.const import EVENT_STATE_CHANGED
+
+    @callback
+    def _handle(event) -> None:
+        """Forward a state change to the connected clients."""
+        entity_id = event.data.get("entity_id")
+        if not entity_id or entity_id not in tracked_entities(entry):
+            return
+        new_state = event.data.get("new_state")
+        stream_hub(hass).publish(
+            "state",
+            {
+                "entity_id": entity_id,
+                "state": new_state.state if new_state else "unavailable",
+                "attributes": dict(new_state.attributes) if new_state else {},
+            },
+        )
+
+    entry.async_on_unload(hass.bus.async_listen(EVENT_STATE_CHANGED, _handle))
 
 
 def _as_list(value: Any) -> list[str]:
@@ -534,8 +1028,27 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
     climates = _climate_cards(hass, options.get(CONF_CLIMATE_ENTITIES, []))
     return {
         "ok": True,
+        "schema_version": PAYLOAD_SCHEMA_VERSION,
+        "server_time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "dashboard_id": entry.entry_id,
         "access_mode": options.get(CONF_ACCESS_MODE, "lan"),
         "title": options.get(CONF_DASHBOARD_TITLE, "Family Dashboard"),
+        "theme": _theme_data(options),
+        "capabilities": {
+            "actions": [
+                "meal_week",
+                "light_toggle",
+                "light_brightness",
+                "scene_activate",
+                "climate_temperature",
+                "climate_mode",
+            ],
+            "stream": True,
+            "background": True,
+            "theme": True,
+            "weekly_meals": True,
+            "schedule": True,
+        },
         "states": states,
         "resolved_entities": {
             "inside": indoor,
@@ -630,19 +1143,22 @@ class RokuDashboardActionView(RokuDashboardView):
 
 def entry_for_code(hass, code: str):
     """Resolve a config entry by short pairing code or device credential."""
-    return next(
-        (
-            item
-            for item in hass.config_entries.async_entries(DOMAIN)
-            if secrets.compare_digest(
-                str(item.data.get(CONF_PAIRING_CODE, "")), code.upper()
-            )
-            or secrets.compare_digest(
-                str(item.data.get(CONF_DEVICE_TOKEN, "")), code.upper()
-            )
-        ),
-        None,
-    )
+    if not code:
+        return None
+    token = code.upper()
+    for item in hass.config_entries.async_entries(DOMAIN):
+        if secrets.compare_digest(
+            str(item.data.get(CONF_PAIRING_CODE, "")), token
+        ):
+            return item
+        if secrets.compare_digest(
+            str(item.data.get(CONF_DEVICE_TOKEN, "")), token
+        ):
+            return item
+    device = pairing.find_by_token(hass, token)
+    if device is not None:
+        return _entry_for_id(hass, device.get("entry_id", "")) or _first_entry(hass)
+    return None
 
 
 def request_allowed(request, entry, pairing: bool) -> bool:
@@ -665,6 +1181,22 @@ def request_allowed(request, entry, pairing: bool) -> bool:
     return request.secure or request.headers.get("X-Forwarded-Proto") == "https"
 
 
+async def _background_response(hass, entry):
+    """Return the uploaded background image for a paired client."""
+    path = Path(hass.config.path("roku_dashboard", "background"))
+    if not path.is_file():
+        return web.json_response({"error": "no_background"}, status=404)
+    content_type = (
+        entry.options.get(CONF_BACKGROUND_TYPE)
+        or mimetypes.guess_type(entry.options.get("background_name", path.name))[0]
+        or "image/jpeg"
+    )
+    return web.FileResponse(
+        path,
+        headers={"Content-Type": content_type, "Cache-Control": "no-store"},
+    )
+
+
 class RokuDashboardBackgroundView(HomeAssistantView):
     """Serve the uploaded background to a paired client."""
 
@@ -681,17 +1213,4 @@ class RokuDashboardBackgroundView(HomeAssistantView):
             return self.json({"error": "invalid_pairing_code"}, status_code=401)
         if not request_allowed(request, entry, pairing=False):
             return self.json({"error": "network_access_denied"}, status_code=403)
-        path = Path(self.hass.config.path("roku_dashboard", "background"))
-        if not path.is_file():
-            return self.json({"error": "no_background"}, status_code=404)
-        content_type = (
-            entry.options.get(CONF_BACKGROUND_TYPE)
-            or mimetypes.guess_type(
-                entry.options.get("background_name", path.name)
-            )[0]
-            or "image/jpeg"
-        )
-        return web.FileResponse(
-            path,
-            headers={"Content-Type": content_type, "Cache-Control": "no-store"},
-        )
+        return await _background_response(self.hass, entry)

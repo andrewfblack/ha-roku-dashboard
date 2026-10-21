@@ -21,6 +21,7 @@ from homeassistant.core import callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     BooleanSelector,
+    ColorRGBSelector,
     EntitySelector,
     EntitySelectorConfig,
     FileSelector,
@@ -72,12 +73,25 @@ from .const import (
     CONF_MEAL_SUNDAY,
     CONF_US_HOLIDAYS_ENABLED,
     CONF_US_OBSERVANCES_ENABLED,
+    CONF_THEME_HEADER_TEXT,
+    CONF_THEME_ITEM_HEADER_TEXT,
+    CONF_THEME_BODY_TEXT,
+    CONF_THEME_MUTED_TEXT,
+    CONF_THEME_ACCENT,
+    CONF_THEME_BACKGROUND,
+    CONF_THEME_ITEM_BACKGROUND,
+    CONF_THEME_SELECTED_BACKGROUND,
+    CONF_THEME_SELECTED_BORDER,
+    CONF_THEME_ITEM_BORDER,
+    CONF_THEME_ITEM_OPACITY,
+    CONF_THEME_BACKGROUND_OVERLAY,
     CREATE_NEW_MEAL_HELPER,
     DOMAIN,
     FORM_BACK,
     LAYOUTS,
     FORECAST_TYPES,
     MEAL_HELPER_ENTITY,
+    THEME_DEFAULTS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -93,6 +107,7 @@ SECTION_LABELS = {
     "scenes": "Scenes and scripts",
     "climate": "Climate tab",
     "appearance": "Appearance",
+    "theme": "Theme and colors",
     "panel": "Home Assistant menu",
     "pairing": "Pairing and security",
 }
@@ -107,6 +122,7 @@ MENU_OPTIONS = [
     "scenes",
     "climate",
     "appearance",
+    "theme",
     "panel",
     "pairing",
 ]
@@ -472,6 +488,58 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): bool,
             }
         ),
+        "theme": _section_schema(
+            {
+                vol.Required(
+                    CONF_THEME_HEADER_TEXT,
+                    default=defaults.get(CONF_THEME_HEADER_TEXT, THEME_DEFAULTS[CONF_THEME_HEADER_TEXT]),
+                ): ColorRGBSelector(),
+                vol.Required(
+                    CONF_THEME_ITEM_HEADER_TEXT,
+                    default=defaults.get(CONF_THEME_ITEM_HEADER_TEXT, THEME_DEFAULTS[CONF_THEME_ITEM_HEADER_TEXT]),
+                ): ColorRGBSelector(),
+                vol.Required(
+                    CONF_THEME_BODY_TEXT,
+                    default=defaults.get(CONF_THEME_BODY_TEXT, THEME_DEFAULTS[CONF_THEME_BODY_TEXT]),
+                ): ColorRGBSelector(),
+                vol.Required(
+                    CONF_THEME_MUTED_TEXT,
+                    default=defaults.get(CONF_THEME_MUTED_TEXT, THEME_DEFAULTS[CONF_THEME_MUTED_TEXT]),
+                ): ColorRGBSelector(),
+                vol.Required(
+                    CONF_THEME_ACCENT,
+                    default=defaults.get(CONF_THEME_ACCENT, THEME_DEFAULTS[CONF_THEME_ACCENT]),
+                ): ColorRGBSelector(),
+                vol.Required(
+                    CONF_THEME_BACKGROUND,
+                    default=defaults.get(CONF_THEME_BACKGROUND, THEME_DEFAULTS[CONF_THEME_BACKGROUND]),
+                ): ColorRGBSelector(),
+                vol.Required(
+                    CONF_THEME_ITEM_BACKGROUND,
+                    default=defaults.get(CONF_THEME_ITEM_BACKGROUND, THEME_DEFAULTS[CONF_THEME_ITEM_BACKGROUND]),
+                ): ColorRGBSelector(),
+                vol.Required(
+                    CONF_THEME_SELECTED_BACKGROUND,
+                    default=defaults.get(CONF_THEME_SELECTED_BACKGROUND, THEME_DEFAULTS[CONF_THEME_SELECTED_BACKGROUND]),
+                ): ColorRGBSelector(),
+                vol.Required(
+                    CONF_THEME_SELECTED_BORDER,
+                    default=defaults.get(CONF_THEME_SELECTED_BORDER, THEME_DEFAULTS[CONF_THEME_SELECTED_BORDER]),
+                ): ColorRGBSelector(),
+                vol.Required(
+                    CONF_THEME_ITEM_BORDER,
+                    default=defaults.get(CONF_THEME_ITEM_BORDER, THEME_DEFAULTS[CONF_THEME_ITEM_BORDER]),
+                ): ColorRGBSelector(),
+                vol.Required(
+                    CONF_THEME_ITEM_OPACITY,
+                    default=defaults.get(CONF_THEME_ITEM_OPACITY, THEME_DEFAULTS[CONF_THEME_ITEM_OPACITY]),
+                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+                vol.Required(
+                    CONF_THEME_BACKGROUND_OVERLAY,
+                    default=defaults.get(CONF_THEME_BACKGROUND_OVERLAY, THEME_DEFAULTS[CONF_THEME_BACKGROUND_OVERLAY]),
+                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+            }
+        ),
         "appearance": _section_schema(
             {
                 vol.Required(
@@ -567,6 +635,20 @@ class RokuDashboardOptionsFlow(OptionsFlow):
         "scenes": [CONF_SCENES_TAB_ENABLED, CONF_SCENE_ENTITIES],
         "climate": [CONF_CLIMATE_TAB_ENABLED, CONF_CLIMATE_ENTITIES],
         "panel": [CONF_PANEL_ENABLED],
+        "theme": [
+            CONF_THEME_HEADER_TEXT,
+            CONF_THEME_ITEM_HEADER_TEXT,
+            CONF_THEME_BODY_TEXT,
+            CONF_THEME_MUTED_TEXT,
+            CONF_THEME_ACCENT,
+            CONF_THEME_BACKGROUND,
+            CONF_THEME_ITEM_BACKGROUND,
+            CONF_THEME_SELECTED_BACKGROUND,
+            CONF_THEME_SELECTED_BORDER,
+            CONF_THEME_ITEM_BORDER,
+            CONF_THEME_ITEM_OPACITY,
+            CONF_THEME_BACKGROUND_OVERLAY,
+        ],
         "appearance": [
             CONF_DASHBOARD_TITLE,
             CONF_BACKGROUND,
@@ -645,6 +727,9 @@ class RokuDashboardOptionsFlow(OptionsFlow):
 
     async def async_step_panel(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("panel", user_input)
+
+    async def async_step_theme(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_section("theme", user_input)
 
     async def async_step_appearance(self, user_input=None) -> ConfigFlowResult:
         schema = _section_schemas(dict(self.config_entry.options), self.hass)[

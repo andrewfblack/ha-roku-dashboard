@@ -185,9 +185,10 @@
           "calendar": "Calendar tab",
           "access": "Network access",
           "meals": "Weekly meal plan",
-          "panel": "Home Assistant menu"
+          "panel": "Home Assistant menu",
+          "theme": "Theme and colors"
         },
-        "description": "Update sensors, calendars, helper, background and layout. The Roku channel picks up changes on its next refresh. Saving a section brings you back to this list; every section also has a “go back” toggle to leave it without saving. {message}"
+        "description": "Update sensors, calendars, helper, background and layout. The Roku channel picks up changes on its next refresh. Saving a section brings you back to this list; every section also has a \u201cgo back\u201d toggle to leave it without saving. {message}"
       },
       "home": {
         "title": "Home tab",
@@ -330,7 +331,7 @@
       },
       "meals": {
         "title": "Weekly meal plan",
-        "description": "Set each day’s meal. The legacy meal helper remains available as a fallback.",
+        "description": "Set each day\u2019s meal. The legacy meal helper remains available as a fallback.",
         "data": {
           "meal_entity": "Meal plan helper",
           "meal_monday": "Monday meal",
@@ -355,6 +356,38 @@
         },
         "data_description": {
           "panel_enabled": "Adds a Family Dashboard entry to the Home Assistant menu. The panel shows the dashboard and lets you change these settings without leaving Home Assistant."
+        }
+      },
+      "theme": {
+        "title": "Theme and colors",
+        "description": "Choose the dashboard palette. Changes apply to the web app, Home Assistant panel, and supported Roku surfaces.",
+        "data": {
+          "theme_header_text": "Header text color",
+          "theme_item_header_text": "Card heading text color",
+          "theme_body_text": "Body text color",
+          "theme_muted_text": "Secondary text color",
+          "theme_accent": "Accent color",
+          "theme_background": "Fallback background color",
+          "theme_item_background": "Card and item background color",
+          "theme_selected_background": "Selected item background color",
+          "theme_selected_border": "Selected item border color",
+          "theme_item_border": "Card and item border color",
+          "theme_item_opacity": "Card background opacity (0\u2013100)",
+          "theme_background_overlay": "Background image darkening (0\u2013100)"
+        },
+        "data_description": {
+          "theme_header_text": "Dashboard title and page title text.",
+          "theme_item_header_text": "Headings inside cards and panels.",
+          "theme_body_text": "Primary event, value, and control text.",
+          "theme_muted_text": "Dates, hints, details, and secondary values.",
+          "theme_accent": "Highlights, calendar markers, and active accents.",
+          "theme_background": "Used behind the dashboard when no image fills the screen.",
+          "theme_item_background": "Base color for cards, controls, event items, and dialogs.",
+          "theme_selected_background": "Fill color for active tabs and selected controls.",
+          "theme_selected_border": "Focus ring and active selection outline.",
+          "theme_item_border": "Normal border around cards and controls.",
+          "theme_item_opacity": "Transparency of cards over the dashboard background.",
+          "theme_background_overlay": "How much the background image is darkened for readability."
         }
       }
     }

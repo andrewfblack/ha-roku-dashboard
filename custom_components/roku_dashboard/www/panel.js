@@ -46,7 +46,10 @@ class FamilyDashboardPanel extends HTMLElement{
 
   _updateAccess(){
     const edit=this.shadowRoot.querySelector('#edit');
-    if(edit)edit.hidden=!(this._hass&&this._hass.user&&this._hass.user.is_admin);
+    const admin=!!(this._hass&&this._hass.user&&this._hass.user.is_admin);
+    if(edit)edit.hidden=!admin;
+    const pairing=this.shadowRoot.querySelector('#pairing');
+    if(pairing)pairing.hidden=!admin;
   }
 
   /* ------------------------------------------------------------------ */
@@ -63,7 +66,7 @@ class FamilyDashboardPanel extends HTMLElement{
         <header>
           <div><h1 id="dashboardTitle">Family Dashboard</h1><div id="clock"></div></div>
           <nav id="tabs" aria-label="Dashboard tabs"></nav>
-          <div class="header-actions"><button id="edit" class="icon-button" title="Change the dashboard settings" aria-label="Change dashboard settings"><img src="${ASSET}mdi/settings.svg" alt=""></button></div>
+          <div class="header-actions"><button id="pairing" class="icon-button" title="Pair a device" aria-label="Pair a device"><img src="${ASSET}mdi/link-variant.svg" alt=""></button><button id="edit" class="icon-button" title="Change the dashboard settings" aria-label="Change dashboard settings"><img src="${ASSET}mdi/settings.svg" alt=""></button></div>
         </header>
         <div id="notice" role="status" hidden></div>
         <main id="content"><div class="loading">Loading…</div></main>
@@ -79,6 +82,11 @@ class FamilyDashboardPanel extends HTMLElement{
         <div id="todayEvents" class="dialog-events"></div>
         <button id="closeToday" class="primary">Close</button>
       </dialog>
+      <dialog id="pairingDialog">
+        <h2>Paired devices</h2>
+        <div id="pairingBody"></div>
+        <div class="fd-actions"><button type="button" id="closePairing" class="primary">Close</button></div>
+      </dialog>
       <dialog id="settingsDialog">
         <form id="settingsForm">
           <h2>Family Dashboard settings</h2>
@@ -87,6 +95,8 @@ class FamilyDashboardPanel extends HTMLElement{
         </form>
       </dialog>`;
     root.querySelector('#edit').onclick=()=>this._openSettings();
+    root.querySelector('#pairing').onclick=()=>this._openPairing();
+    root.querySelector('#closePairing').onclick=()=>root.querySelector('#pairingDialog').close();
     root.querySelector('#closeSettings').onclick=()=>root.querySelector('#settingsDialog').close();
     root.querySelector('#closeMeals').onclick=()=>root.querySelector('#mealDialog').close();
     root.querySelector('#saveMeals').onclick=()=>this._saveMeals();
@@ -138,6 +148,7 @@ class FamilyDashboardPanel extends HTMLElement{
     const background=this.shadowRoot.querySelector('#background');
     const data=this._data;
     if(!background||!data||!window.FamilyDashboard)return;
+    window.FamilyDashboard.applyTheme(this,data);
     if(data.background==='uploaded'&&data.has_uploaded_background){
       const url=await this._uploadedBackground();
       background.style.backgroundImage=url?`url("${url}")`:'';
@@ -224,6 +235,44 @@ class FamilyDashboardPanel extends HTMLElement{
   }
 
   /* ------------------------------------------------------------------ */
+  /* Pairing                                                             */
+  /* ------------------------------------------------------------------ */
+
+  async _openPairing(){
+    const root=this.shadowRoot;
+    const body=root.querySelector('#pairingBody');
+    const esc=window.FamilyDashboard.esc;
+    let state;
+    try{
+      state=await this._hass.callApi('GET','family_dashboard/panel/pairing');
+    }catch(error){
+      body.innerHTML='<div class="empty compact">Unable to load the paired devices.</div>';
+      root.querySelector('#pairingDialog').showModal();
+      return;
+    }
+    const pending=(state.pending||[]).map(r=>`<div class="fd-pair-row"><div><b>${esc(r.name||'Unknown device')}</b><small>${esc(r.platform)}${r.remote?' · '+esc(r.remote):''}${r.app_version?' · '+esc(r.app_version):''}</small><code>${esc(r.device_code)}</code></div><div><button class="primary" data-approve="${esc(r.device_code)}">Approve</button><button data-deny="${esc(r.device_code)}">Deny</button></div></div>`).join('');
+    const devices=(state.devices||[]).map(d=>`<div class="fd-pair-row"><div><b>${esc(d.name||'Unknown device')}</b><small>${esc(d.platform)}${d.last_seen?' · last seen '+esc(d.last_seen):''}</small></div><div><button data-revoke="${esc(d.device_id)}">Revoke</button></div></div>`).join('');
+    const legacy=state.legacy_token?`<div class="fd-pair-row"><div><b>Legacy shared token</b><small>Used by clients that paired before per-device credentials</small></div><div><button data-revoke-legacy="1">Revoke</button></div></div>`:'';
+    body.innerHTML=`<h3>Waiting for approval</h3>${pending||'<div class="empty compact">No device is waiting to pair.</div>'}<h3>Paired devices</h3>${devices||'<div class="empty compact">No device is paired yet.</div>'}${legacy}`;
+    body.querySelectorAll('[data-approve]').forEach(b=>b.onclick=()=>this._pairingAction({action:'approve',device_code:b.dataset.approve}));
+    body.querySelectorAll('[data-deny]').forEach(b=>b.onclick=()=>this._pairingAction({action:'deny',device_code:b.dataset.deny}));
+    body.querySelectorAll('[data-revoke]').forEach(b=>b.onclick=()=>this._pairingAction({action:'revoke',device_id:b.dataset.revoke}));
+    const revokeLegacy=body.querySelector('[data-revoke-legacy]');
+    if(revokeLegacy)revokeLegacy.onclick=()=>this._pairingAction({action:'revoke_legacy'});
+    root.querySelector('#pairingDialog').showModal();
+  }
+
+  async _pairingAction(body){
+    try{
+      await this._hass.callApi('POST','family_dashboard/panel/pairing',body);
+      this._showNotice('Done.','info');
+    }catch(error){
+      this._showNotice(`Unable to update the paired devices: ${error.message||error}`);
+    }
+    await this._openPairing();
+  }
+
+  /* ------------------------------------------------------------------ */
   /* Settings                                                            */
   /* ------------------------------------------------------------------ */
 
@@ -247,6 +296,10 @@ class FamilyDashboardPanel extends HTMLElement{
 
   _toggle(name,label,checked){
     return `<label class="fd-toggle"><input type="checkbox" name="${name}"${checked?' checked':''}><span>${label}</span></label>`;
+  }
+
+  _color(name,label,value){
+    return `<label class="fd-field fd-color"><span>${label}</span><input type="color" name="${name}" value="${value||'#000000'}"></label>`;
   }
 
   async _openSettings(){
@@ -285,11 +338,30 @@ class FamilyDashboardPanel extends HTMLElement{
         ${this._toggle('scenes_tab_enabled','Scenes',options.scenes_tab_enabled!==false)}
         ${this._toggle('climate_tab_enabled','Climate',options.climate_tab_enabled!==false)}
       </div>
+      <h3>Theme and colors</h3>
+      <div class="fd-grid fd-theme-grid">
+        ${this._color('theme_header_text','Header text',options.theme_header_text)}
+        ${this._color('theme_item_header_text','Card heading text',options.theme_item_header_text)}
+        ${this._color('theme_body_text','Body text',options.theme_body_text)}
+        ${this._color('theme_muted_text','Secondary text',options.theme_muted_text)}
+        ${this._color('theme_accent','Accent',options.theme_accent)}
+        ${this._color('theme_background','Fallback background',options.theme_background)}
+        ${this._color('theme_item_background','Card background',options.theme_item_background)}
+        ${this._color('theme_selected_background','Selected background',options.theme_selected_background)}
+        ${this._color('theme_selected_border','Selected border',options.theme_selected_border)}
+        ${this._color('theme_item_border','Card border',options.theme_item_border)}
+        <label class="fd-field"><span>Card opacity: <output id="itemOpacityOutput">${options.theme_item_opacity}</output>%</span><input type="range" name="theme_item_opacity" min="0" max="100" value="${options.theme_item_opacity}"></label>
+        <label class="fd-field"><span>Background darkening: <output id="overlayOutput">${options.theme_background_overlay}</output>%</span><input type="range" name="theme_background_overlay" min="0" max="100" value="${options.theme_background_overlay}"></label>
+      </div>
       <h3>Weekly meal plan</h3>
       <div class="fd-grid">
         ${DAYS.map((day,index)=>`<label class="fd-field"><span>${day}</span><input type="text" maxlength="120" name="meal_${index}" value="${esc(options[`meal_${day.toLowerCase()}`]||'')}"></label>`).join('')}
       </div>`;
     root.querySelector('#settingsDialog').showModal();
+    const itemOpacity=root.querySelector('[name="theme_item_opacity"]');
+    const overlay=root.querySelector('[name="theme_background_overlay"]');
+    itemOpacity.oninput=()=>root.querySelector('#itemOpacityOutput').value=itemOpacity.value;
+    overlay.oninput=()=>root.querySelector('#overlayOutput').value=overlay.value;
   }
 
   async _saveSettings(){
@@ -316,6 +388,18 @@ class FamilyDashboardPanel extends HTMLElement{
       lights_tab_enabled:checked('lights_tab_enabled'),
       scenes_tab_enabled:checked('scenes_tab_enabled'),
       climate_tab_enabled:checked('climate_tab_enabled'),
+      theme_header_text:value('theme_header_text'),
+      theme_item_header_text:value('theme_item_header_text'),
+      theme_body_text:value('theme_body_text'),
+      theme_muted_text:value('theme_muted_text'),
+      theme_accent:value('theme_accent'),
+      theme_background:value('theme_background'),
+      theme_item_background:value('theme_item_background'),
+      theme_selected_background:value('theme_selected_background'),
+      theme_selected_border:value('theme_selected_border'),
+      theme_item_border:value('theme_item_border'),
+      theme_item_opacity:Number(value('theme_item_opacity')),
+      theme_background_overlay:Number(value('theme_background_overlay')),
     };
     DAYS.forEach((day,index)=>{options[`meal_${day.toLowerCase()}`]=value(`meal_${index}`)});
     try{

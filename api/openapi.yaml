@@ -1,0 +1,888 @@
+openapi: 3.1.0
+
+info:
+  title: Family Dashboard Client API
+  version: "2.0.0"
+  summary: The API every Family Dashboard client talks to.
+  description: |
+    The Family Dashboard integration exposes one contract for every client:
+    the Roku channel, the web app, and the Apple and Android apps.
+
+    ## Authentication
+
+    Every client gets its own credential. Send it as an `Authorization:
+    Bearer <token>` header. Clients that cannot set headers may put the token
+    in the URL path instead, but a token in a URL ends up in access logs, so
+    the header is preferred.
+
+    ## Pairing
+
+    There are two ways to pair.
+
+    * **Device-initiated** (recommended, and the only option on a device
+      without a keyboard such as Apple TV): the client asks for a device code,
+      shows it to the user, and waits for an administrator to approve it in the
+      Home Assistant panel.
+    * **Code entry** (legacy, kept forever for Roku channels that cannot be
+      force-updated): the client posts the short pairing code shown in Home
+      Assistant and receives a credential in return.
+
+    ## Network policy
+
+    The integration only answers on the local network or over Tailscale,
+    unless the administrator switches the network access to allow an external
+    HTTPS address. Requests from an address that is not allowed get
+    `network_access_denied`.
+
+servers:
+  - url: "{home_assistant}"
+    description: Your Home Assistant instance.
+    variables:
+      home_assistant:
+        default: http://homeassistant.local:8123
+        description: The Home Assistant base URL.
+
+tags:
+  - name: Pairing
+    description: Getting a client paired.
+  - name: Dashboard
+    description: Reading the dashboard and controlling it.
+  - name: Legacy
+    description: The original Roku-only routes, kept for older installs.
+
+paths:
+  /api/family_dashboard/pairing/request:
+    post:
+      tags: [Pairing]
+      summary: Ask to pair this device.
+      description: |
+        Creates a pending pairing request and returns a device code. The
+        device shows the code to the user, who approves it in the Home
+        Assistant panel. The device then polls the status endpoint until the
+        request is approved.
+
+        Pairing is only allowed from the local network or over Tailscale.
+      operationId: createPairingRequest
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                device_name:
+                  type: string
+                  description: The name to show the administrator.
+                  examples: ["Living Room TV"]
+                platform:
+                  type: string
+                  enum: [ios, tvos, roku, web, android, legacy, unknown]
+                  examples: [tvos]
+                app_version:
+                  type: string
+                  examples: ["1.0.0"]
+      responses:
+        "200":
+          description: The request was created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PairingRequestResponse"
+        "403":
+          $ref: "#/components/responses/NetworkDenied"
+        "404":
+          $ref: "#/components/responses/NotConfigured"
+
+  /api/family_dashboard/pairing/status:
+    get:
+      tags: [Pairing]
+      summary: Check whether a pairing request was approved.
+      description: |
+        Returns the state of a pairing request. The device credential is
+        handed over exactly once, in the response that reports `approved`. A
+        client that loses that response has to start a new pairing request.
+      operationId: getPairingStatus
+      security: []
+      parameters:
+        - name: device_code
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$"
+      responses:
+        "200":
+          description: The state of the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PairingStatusResponse"
+        "404":
+          description: The code is unknown or the request expired.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/family_dashboard/pairing/code:
+    post:
+      tags: [Pairing]
+      summary: Exchange the short pairing code for a credential.
+      description: |
+        The legacy flow for clients that have a keyboard. The short pairing
+        code is shown in Home Assistant, on
+        `sensor.roku_dashboard_config` and in the pairing settings. The code
+        is rotated once it has been used.
+      operationId: exchangePairingCode
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  description: The short pairing code.
+                  examples: ["A1B2C3D4"]
+                device_name:
+                  type: string
+                  examples: ["Living Room TV"]
+                platform:
+                  type: string
+                  enum: [ios, tvos, roku, web, android, legacy, unknown]
+      responses:
+        "200":
+          description: The credential for this device.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceCredential"
+        "401":
+          $ref: "#/components/responses/InvalidToken"
+        "403":
+          $ref: "#/components/responses/NetworkDenied"
+
+  /api/family_dashboard/device:
+    get:
+      tags: [Dashboard]
+      summary: Read the dashboard.
+      operationId: getDashboard
+      security:
+        - deviceToken: []
+      responses:
+        "200":
+          description: The dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardPayload"
+        "401":
+          $ref: "#/components/responses/InvalidToken"
+        "403":
+          $ref: "#/components/responses/NetworkDenied"
+
+  /api/family_dashboard/device/action:
+    post:
+      tags: [Dashboard]
+      summary: Control a light, scene or thermostat.
+      description: |
+        Every action is allowlisted: a command that names an entity the
+        dashboard was not configured with is refused with `not_allowed`.
+      operationId: runDashboardAction
+      security:
+        - deviceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActionRequest"
+      responses:
+        "200":
+          description: The action ran.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/InvalidToken"
+        "403":
+          $ref: "#/components/responses/NetworkDenied"
+
+  /api/family_dashboard/device/background:
+    get:
+      tags: [Dashboard]
+      summary: Read the uploaded background image.
+      operationId: getBackground
+      security:
+        - deviceToken: []
+      responses:
+        "200":
+          description: The image.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                contentMediaType: image/jpeg
+            image/png:
+              schema:
+                type: string
+                contentMediaType: image/png
+            image/webp:
+              schema:
+                type: string
+                contentMediaType: image/webp
+        "401":
+          $ref: "#/components/responses/InvalidToken"
+        "403":
+          $ref: "#/components/responses/NetworkDenied"
+        "404":
+          description: No background has been uploaded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/family_dashboard/stream:
+    get:
+      tags: [Dashboard]
+      summary: Receive dashboard updates as they happen.
+      description: |
+        A server-sent events stream. The first event is `dashboard`, which
+        carries the same payload as `GET /api/family_dashboard/device`.
+        Afterwards the stream sends:
+
+        * `state` - an entity the dashboard displays changed.
+        * `refresh` - the dashboard configuration changed, so the client
+          should read the dashboard again.
+
+        The stream sends a comment every 25 seconds to keep the connection
+        open, and it ends when the client disconnects.
+
+        This endpoint exists so a client never needs a Home Assistant
+        long-lived access token, which would grant far more access than a
+        dashboard needs.
+      operationId: streamDashboard
+      security:
+        - deviceToken: []
+      responses:
+        "200":
+          description: The event stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/InvalidToken"
+        "403":
+          $ref: "#/components/responses/NetworkDenied"
+
+  /api/family_dashboard/{token}:
+    get:
+      tags: [Dashboard, Legacy]
+      summary: Read the dashboard using a token in the URL.
+      description: |
+        The same as `GET /api/family_dashboard/device`, for clients that
+        cannot send an `Authorization` header. Prefer the header.
+      operationId: getDashboardWithPathToken
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PathToken"
+      responses:
+        "200":
+          description: The dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardPayload"
+        "401":
+          $ref: "#/components/responses/InvalidToken"
+        "403":
+          $ref: "#/components/responses/NetworkDenied"
+
+  /api/roku_dashboard/{code}:
+    get:
+      tags: [Legacy]
+      summary: Read the dashboard using the original Roku route.
+      description: |
+        Kept so Roku channels that paired before this version keep working.
+        The code may be the short pairing code, in which case the response
+        also carries a `device_token` and the short code is rotated.
+      operationId: getLegacyDashboard
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PathToken"
+      responses:
+        "200":
+          description: The dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardPayload"
+        "401":
+          $ref: "#/components/responses/InvalidToken"
+        "403":
+          $ref: "#/components/responses/NetworkDenied"
+
+  /api/roku_dashboard/{code}/action:
+    post:
+      tags: [Legacy]
+      summary: Control a light, scene or thermostat using the original route.
+      operationId: runLegacyAction
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PathToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActionRequest"
+      responses:
+        "200":
+          description: The action ran.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResult"
+        "401":
+          $ref: "#/components/responses/InvalidToken"
+        "403":
+          $ref: "#/components/responses/NetworkDenied"
+
+  /api/roku_dashboard/{code}/background:
+    get:
+      tags: [Legacy]
+      summary: Read the uploaded background image using the original route.
+      operationId: getLegacyBackground
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PathToken"
+      responses:
+        "200":
+          description: The image.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                contentMediaType: image/jpeg
+        "401":
+          $ref: "#/components/responses/InvalidToken"
+        "403":
+          $ref: "#/components/responses/NetworkDenied"
+
+components:
+  securitySchemes:
+    deviceToken:
+      type: http
+      scheme: bearer
+      description: The per-device credential from the pairing flow.
+
+  parameters:
+    PathToken:
+      name: token
+      in: path
+      required: true
+      schema:
+        type: string
+      description: The device credential.
+
+  responses:
+    InvalidToken:
+      description: The credential is missing, unknown or expired.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NetworkDenied:
+      description: The network policy does not allow this client.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    BadRequest:
+      description: The request body could not be used.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotConfigured:
+      description: The integration is not set up yet.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          enum:
+            - invalid_token
+            - invalid_pairing_code
+            - unknown_device_code
+            - network_access_denied
+            - invalid_json
+            - invalid_meal_plan
+            - invalid_mode
+            - not_allowed
+            - service_failed
+            - no_background
+            - not_configured
+      required: [error]
+
+    DeviceCredential:
+      type: object
+      properties:
+        device_token:
+          type: string
+          description: The credential to send in the Authorization header.
+        device_id:
+          type: string
+          description: The identifier of this device.
+      required: [device_token, device_id]
+
+    PairingRequestResponse:
+      type: object
+      properties:
+        device_code:
+          type: string
+          pattern: "^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$"
+          description: The code to show the user.
+        expires_in:
+          type: integer
+          description: How long the code stays valid, in seconds.
+          examples: [300]
+        poll_interval:
+          type: integer
+          description: How often to poll the status endpoint, in seconds.
+          examples: [3]
+      required: [device_code, expires_in, poll_interval]
+
+    PairingStatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, approved, denied, consumed]
+        device_token:
+          type: string
+          description: Present once, in the response that reports `approved`.
+        expires_in:
+          type: integer
+          description: How long the request stays valid, in seconds.
+      required: [status]
+
+    ActionRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+            - meal_week
+            - light_toggle
+            - light_brightness
+            - scene_activate
+            - climate_temperature
+            - climate_mode
+        entity_id:
+          type: string
+          description: Required for every action except `meal_week`.
+        value:
+          description: |
+            The value for the action: a percentage for `light_brightness`, a
+            temperature for `climate_temperature`, a mode for `climate_mode`,
+            and seven meal strings for `meal_week`.
+          oneOf:
+            - type: number
+            - type: string
+            - type: array
+              items:
+                type: string
+      required: [action]
+
+    ActionResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          type: integer
+        error:
+          type: string
+      oneOf:
+        - required: [ok]
+        - required: [error]
+
+    DashboardPayload:
+      type: object
+      description: Everything a client needs to draw the dashboard.
+      properties:
+        ok:
+          type: boolean
+          const: true
+        schema_version:
+          type: integer
+          description: The version of this contract.
+          examples: [2]
+        server_time:
+          type: string
+          format: date-time
+        dashboard_id:
+          type: string
+        access_mode:
+          type: string
+          enum: [lan, tailscale, external]
+        title:
+          type: string
+        theme:
+          $ref: "#/components/schemas/Theme"
+        capabilities:
+          $ref: "#/components/schemas/Capabilities"
+        states:
+          type: object
+          description: The state of every entity the dashboard displays.
+          additionalProperties:
+            $ref: "#/components/schemas/EntityState"
+        resolved_entities:
+          type: object
+          properties:
+            inside:
+              type: string
+            inside_humidity:
+              type: string
+            outside:
+              type: string
+        meal_plan:
+          type: string
+          description: The meal for today.
+        weekly_meal_plan:
+          type: array
+          items:
+            $ref: "#/components/schemas/WeeklyMeal"
+        calendar_events:
+          type: array
+          description: The next events of today.
+          items:
+            $ref: "#/components/schemas/CalendarEvent"
+        today_events:
+          type: array
+          description: Every event of today.
+          items:
+            $ref: "#/components/schemas/CalendarEvent"
+        month_calendar:
+          $ref: "#/components/schemas/MonthCalendar"
+        calendar_schedule:
+          $ref: "#/components/schemas/CalendarSchedule"
+        background:
+          type: string
+          enum: [fall, winter, spring, summer, uploaded, custom_url]
+        background_url:
+          type: string
+        background_version:
+          type: string
+        has_uploaded_background:
+          type: boolean
+        layout:
+          type: string
+          enum: [home, compact, meals_first]
+        weather:
+          $ref: "#/components/schemas/Weather"
+        tabs:
+          type: object
+          description: Which tabs the administrator enabled.
+          properties:
+            calendar:
+              type: boolean
+            weather:
+              type: boolean
+            lights:
+              type: boolean
+            scenes:
+              type: boolean
+            climate:
+              type: boolean
+        lights:
+          type: array
+          items:
+            $ref: "#/components/schemas/LightCard"
+        scenes:
+          type: array
+          items:
+            $ref: "#/components/schemas/SceneCard"
+        climates:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClimateCard"
+      required:
+        - ok
+        - schema_version
+        - theme
+        - states
+        - meal_plan
+        - weekly_meal_plan
+        - tabs
+        - lights
+        - scenes
+        - climates
+
+    Theme:
+      type: object
+      description: |
+        The colours the administrator picked. Every colour is a `#RRGGBB`
+        string, so no client has to convert a colour itself.
+      properties:
+        header_text:
+          type: string
+        item_header_text:
+          type: string
+        body_text:
+          type: string
+        muted_text:
+          type: string
+        accent:
+          type: string
+        background:
+          type: string
+        item_background:
+          type: string
+        selected_background:
+          type: string
+        selected_border:
+          type: string
+        item_border:
+          type: string
+        item_opacity:
+          type: integer
+          minimum: 0
+          maximum: 100
+        background_overlay:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    Capabilities:
+      type: object
+      description: What this dashboard supports.
+      properties:
+        actions:
+          type: array
+          items:
+            type: string
+        stream:
+          type: boolean
+        background:
+          type: boolean
+        theme:
+          type: boolean
+        weekly_meals:
+          type: boolean
+        schedule:
+          type: boolean
+
+    EntityState:
+      type: object
+      properties:
+        state:
+          type: string
+        attributes:
+          type: object
+          additionalProperties: true
+
+    WeeklyMeal:
+      type: object
+      properties:
+        day:
+          type: string
+        meal:
+          type: string
+        is_today:
+          type: boolean
+
+    CalendarEvent:
+      type: object
+      properties:
+        title:
+          type: string
+        start:
+          type: string
+        all_day:
+          type: boolean
+        calendar_id:
+          type: string
+        calendar_name:
+          type: string
+        color:
+          type: string
+          description: A hex colour without the hash.
+          examples: ["E87979"]
+
+    MonthCalendar:
+      type: object
+      properties:
+        title:
+          type: string
+        year:
+          type: integer
+        month:
+          type: integer
+        today:
+          type: integer
+        days_in_month:
+          type: integer
+        first_weekday:
+          type: integer
+        event_days:
+          type: array
+          items:
+            type: integer
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalendarEvent"
+
+    CalendarSchedule:
+      type: object
+      properties:
+        title:
+          type: string
+        days:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              weekday:
+                type: string
+              day:
+                type: integer
+              month:
+                type: string
+              is_today:
+                type: boolean
+              is_weekend:
+                type: boolean
+              events:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalendarEvent"
+              overflow:
+                type: integer
+                description: How many more events the day holds.
+
+    Weather:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        available:
+          type: boolean
+        entity_id:
+          type: string
+        name:
+          type: string
+        condition:
+          type: string
+        temperature:
+          type: number
+        temperature_unit:
+          type: string
+        humidity:
+          type: number
+        pressure:
+          type: number
+        wind_speed:
+          type: number
+        wind_bearing:
+          type: number
+        visibility:
+          type: number
+        forecast_type:
+          type: string
+          enum: [daily, hourly]
+        forecast:
+          type: array
+          items:
+            type: object
+            properties:
+              datetime:
+                type: string
+              label:
+                type: string
+              condition:
+                type: string
+              temperature:
+                type: number
+              templow:
+                type: number
+              precipitation_probability:
+                type: number
+              wind_speed:
+                type: number
+
+    LightCard:
+      type: object
+      properties:
+        entity_id:
+          type: string
+        name:
+          type: string
+        state:
+          type: string
+        brightness:
+          type: number
+          nullable: true
+        color_temp_kelvin:
+          type: number
+          nullable: true
+
+    SceneCard:
+      type: object
+      properties:
+        entity_id:
+          type: string
+        name:
+          type: string
+        state:
+          type: string
+
+    ClimateCard:
+      type: object
+      properties:
+        entity_id:
+          type: string
+        name:
+          type: string
+        state:
+          type: string
+        current_temperature:
+          type: number
+        temperature:
+          type: number
+        target_temp_low:
+          type: number
+        target_temp_high:
+          type: number
+        humidity:
+          type: number
+        hvac_action:
+          type: string
+        hvac_modes:
+          type: array
+          items:
+            type: string
+        min_temp:
+          type: number
+        max_temp:
+          type: number
+        target_temp_step:
+          type: number
+          default: 1

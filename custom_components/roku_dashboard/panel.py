@@ -20,6 +20,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .api import async_dashboard_payload, async_execute_action
+from . import pairing
 from .const import (
     BACKGROUNDS,
     CONF_BACKGROUND,
@@ -30,8 +31,10 @@ from .const import (
     CONF_CLIMATE_ENTITIES,
     CONF_CLIMATE_TAB_ENABLED,
     CONF_DASHBOARD_TITLE,
+    CONF_DEVICE_TOKEN,
     CONF_INDOOR_ENTITY,
     CONF_INDOOR_HUMIDITY_ENTITY,
+    CONF_LEGACY_TOKEN_REVOKED,
     CONF_LAYOUT,
     CONF_LIGHT_ENTITIES,
     CONF_LIGHTS_TAB_ENABLED,
@@ -40,6 +43,18 @@ from .const import (
     CONF_SCENE_ENTITIES,
     CONF_SCENES_TAB_ENABLED,
     CONF_WEATHER_TAB_ENABLED,
+    CONF_THEME_HEADER_TEXT,
+    CONF_THEME_ITEM_HEADER_TEXT,
+    CONF_THEME_BODY_TEXT,
+    CONF_THEME_MUTED_TEXT,
+    CONF_THEME_ACCENT,
+    CONF_THEME_BACKGROUND,
+    CONF_THEME_ITEM_BACKGROUND,
+    CONF_THEME_SELECTED_BACKGROUND,
+    CONF_THEME_SELECTED_BORDER,
+    CONF_THEME_ITEM_BORDER,
+    CONF_THEME_ITEM_OPACITY,
+    CONF_THEME_BACKGROUND_OVERLAY,
     DOMAIN,
     LAYOUTS,
     MEAL_DAY_KEYS,
@@ -47,6 +62,7 @@ from .const import (
     PANEL_ICON,
     PANEL_JS_URL,
     PANEL_URL_PATH,
+    THEME_DEFAULTS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -108,6 +124,31 @@ def _clean_entities(
     return cleaned
 
 
+def _rgb_hex(value: Any, fallback: list[int]) -> str:
+    """Return an RGB list as #RRGGBB."""
+    if not isinstance(value, (list, tuple)) or len(value) != 3:
+        value = fallback
+    rgb = [max(0, min(255, int(channel))) for channel in value]
+    return "#" + "".join(f"{channel:02X}" for channel in rgb)
+
+
+def _clean_rgb(value: Any, fallback: list[int]) -> list[int]:
+    """Accept a panel hex color or an HA RGB selector value."""
+    if isinstance(value, str):
+        text = value.strip().lstrip("#")
+        if len(text) == 6:
+            try:
+                return [int(text[index:index + 2], 16) for index in (0, 2, 4)]
+            except ValueError:
+                pass
+    if isinstance(value, (list, tuple)) and len(value) == 3:
+        try:
+            return [max(0, min(255, int(channel))) for channel in value]
+        except (TypeError, ValueError):
+            pass
+    return list(fallback)
+
+
 def _public_options(options: dict[str, Any]) -> dict[str, Any]:
     """Return the options the panel is allowed to read and write."""
     return {
@@ -129,6 +170,18 @@ def _public_options(options: dict[str, Any]) -> dict[str, Any]:
         CONF_LIGHT_ENTITIES: options.get(CONF_LIGHT_ENTITIES, []),
         CONF_SCENE_ENTITIES: options.get(CONF_SCENE_ENTITIES, []),
         CONF_CLIMATE_ENTITIES: options.get(CONF_CLIMATE_ENTITIES, []),
+        **{
+            key: _rgb_hex(options.get(key), default)
+            for key, default in THEME_DEFAULTS.items()
+            if isinstance(default, list)
+        },
+        CONF_THEME_ITEM_OPACITY: options.get(
+            CONF_THEME_ITEM_OPACITY, THEME_DEFAULTS[CONF_THEME_ITEM_OPACITY]
+        ),
+        CONF_THEME_BACKGROUND_OVERLAY: options.get(
+            CONF_THEME_BACKGROUND_OVERLAY,
+            THEME_DEFAULTS[CONF_THEME_BACKGROUND_OVERLAY],
+        ),
         **{key: options.get(key, "") for key in MEAL_DAY_KEYS},
     }
 
@@ -160,6 +213,16 @@ def _merge_options(
     if layout not in LAYOUTS:
         raise ValueError("invalid_layout")
     options[CONF_LAYOUT] = layout
+
+    for key, default in THEME_DEFAULTS.items():
+        if isinstance(default, list):
+            options[key] = _clean_rgb(incoming.get(key, options.get(key)), default)
+    for key in (CONF_THEME_ITEM_OPACITY, CONF_THEME_BACKGROUND_OVERLAY):
+        try:
+            number = int(incoming.get(key, options.get(key, THEME_DEFAULTS[key])))
+        except (TypeError, ValueError):
+            number = THEME_DEFAULTS[key]
+        options[key] = max(0, min(100, number))
 
     for key in _TOGGLE_OPTIONS:
         options[key] = bool(incoming.get(key, options.get(key, True)))
@@ -321,6 +384,95 @@ class FamilyDashboardPanelBackgroundView(HomeAssistantView):
             path,
             headers={"Content-Type": content_type, "Cache-Control": "no-store"},
         )
+
+
+class FamilyDashboardPanelPairingView(HomeAssistantView):
+    """Review pairing requests and manage the paired devices.
+
+    Devices without a keyboard, such as Apple TV, ask to pair and wait for an
+    administrator to approve them here. Approval never happens in a client
+    app, so a paired device holds no administrative access.
+    """
+
+    url = "/api/family_dashboard/panel/pairing"
+    name = "api:roku_dashboard_panel_pairing"
+    requires_auth = True
+
+    def __init__(self, hass) -> None:
+        self.hass = hass
+
+    async def get(self, request):
+        """Return the pending requests and the paired devices."""
+        if not _is_admin(request):
+            return self.json({"error": "not_allowed"}, status_code=403)
+        return self.json(
+            {
+                "pending": [
+                    pairing.public_request(record)
+                    for record in pairing.list_requests(self.hass)
+                ],
+                "devices": [
+                    pairing.public_record(record)
+                    for record in pairing.list_devices(self.hass)
+                ],
+                "legacy_token": self._legacy_device(),
+            }
+        )
+
+    async def post(self, request):
+        """Approve, deny or revoke a device."""
+        if not _is_admin(request):
+            return self.json({"error": "not_allowed"}, status_code=403)
+        try:
+            body = await request.json()
+        except Exception:
+            return self.json({"error": "invalid_json"}, status_code=400)
+        action = str(body.get("action", ""))
+        if action in ("approve", "deny"):
+            code = str(body.get("device_code", "")).strip().upper()
+            if action == "approve":
+                record = await pairing.async_approve(self.hass, code)
+                if record is None:
+                    return self.json({"error": "unknown_request"}, status_code=404)
+                return self.json({"ok": True, "device_id": record["device_id"]})
+            if not await pairing.async_deny(self.hass, code):
+                return self.json({"error": "unknown_request"}, status_code=404)
+            return self.json({"ok": True})
+        if action == "revoke":
+            device_id = str(body.get("device_id", ""))
+            if not await pairing.async_revoke(self.hass, device_id):
+                return self.json({"error": "unknown_device"}, status_code=404)
+            return self.json({"ok": True})
+        if action == "revoke_legacy":
+            return await self._revoke_legacy()
+        return self.json({"error": "invalid_action"}, status_code=400)
+
+    def _legacy_device(self) -> dict[str, Any] | None:
+        """Return the shared credential used before per-device tokens."""
+        entry = _config_entry(self.hass)
+        if entry is None or not entry.data.get(CONF_DEVICE_TOKEN):
+            return None
+        return {
+            "device_id": "legacy",
+            "name": "Legacy shared token",
+            "platform": "legacy",
+            "created": "",
+            "last_seen": "",
+            "legacy": True,
+        }
+
+    async def _revoke_legacy(self):
+        """Clear the shared credential used before per-device tokens."""
+        entry = _config_entry(self.hass)
+        if entry is None:
+            return self.json({"error": "not_configured"}, status_code=404)
+        data = dict(entry.data)
+        data[CONF_DEVICE_TOKEN] = ""
+        # Remember the revocation, otherwise the next reload would hand out a
+        # fresh shared token and the revoke would look like it did nothing.
+        data[CONF_LEGACY_TOKEN_REVOKED] = True
+        self.hass.config_entries.async_update_entry(entry, data=data)
+        return self.json({"ok": True})
 
 
 async def async_setup_panel(hass: HomeAssistant) -> None:

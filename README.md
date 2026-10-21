@@ -18,6 +18,13 @@ full-day event and weekly meal dialogs, centered condition artwork, and a
 responsive Skylight-inspired schedule. On phones, day columns scroll and snap
 horizontally; larger displays show the configured week together.
 
+Under **Configure → Theme and colors**, visual settings use native color
+pickers with human-readable names for dashboard headers, card headings, body
+and secondary text, accents, fallback background, card backgrounds, selected
+items, focus borders, normal borders, card transparency, and background-image
+darkening. The same payload themes the PWA, Home Assistant panel, and supported
+Roku surfaces.
+
 - 🍽️ **Creates and owns the meal-planner helper** — an `input_text`
   (`input_text.roku_dashboard_meal_plan`) is created for you, editable from
   the HA UI (Helpers), automations, or the `roku_dashboard.set_meal_plan`
@@ -57,6 +64,19 @@ horizontally; larger displays show the configured week together.
 - 🔗 **Short-code pairing** — the TV uses an 8-character code instead of a
   long-lived Home Assistant access token. The local pairing endpoint exposes
   only the entities and calendars selected for this dashboard.
+- 📱 **Device-initiated pairing** — a device asks to pair, shows an
+  unambiguous code on screen, and waits for an administrator to approve it in
+  the Home Assistant panel. This is the only flow that works on a device
+  without a keyboard, such as Apple TV.
+- 🔑 **One credential per device** — every paired client gets its own
+  revocable token. Approval happens in Home Assistant, never in a client app,
+  so a paired device holds no administrative access.
+- ⚡ **Live updates over server-sent events** — clients receive state changes
+  for the entities the dashboard shows, without ever holding a Home Assistant
+  long-lived access token.
+- 📄 **A published client contract** — `api/openapi.yaml` and `api/SCHEMA.md`
+  describe every endpoint, the payload and the event stream. The Apple and
+  Android apps are built against it.
 - 🌐 **Interactive PWA** — mouse/touch controls, fullscreen display, screen
   wake lock, automatic refresh, and install-to-home-screen support.
 - 🍔 **Home Assistant panel** — optional entry in the Home Assistant
@@ -182,6 +202,57 @@ automation:
           value: "{{ 'winter' if now().month in [12,1,2] else 'fall' }}"
 ```
 
+## Pairing a device
+
+Every client gets its own credential, so a phone can be revoked without
+touching the television.
+
+There are two ways to pair.
+
+### Device-initiated (recommended)
+
+The device asks to pair, shows an eight character code on screen, and waits
+for you to approve it:
+
+1. Open the **Family Dashboard** panel in Home Assistant.
+2. Press the **🔗 Pair a device** button in the header.
+3. The pending request appears with the device name and the code it is
+   showing.
+4. Press **Approve**. The device picks up its credential on its next poll.
+
+The code uses the alphabet `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, which leaves
+out the characters people mix up (`0`/`O` and `1`/`I`), so it can be read
+aloud from a TV screen. A request expires after five minutes, and the
+credential is handed over exactly once.
+
+### Entering the code (legacy)
+
+Devices with a keyboard can type the short pairing code instead. Find it on
+`sensor.roku_dashboard_config` or in the pairing settings. The code is
+rotated as soon as it has been used.
+
+## Client API
+
+The API every client talks to lives under `/api/family_dashboard`:
+
+```text
+POST /api/family_dashboard/pairing/request     ask to pair, get a device code
+GET  /api/family_dashboard/pairing/status       wait for the approval
+POST /api/family_dashboard/pairing/code         legacy: trade the short code in
+GET  /api/family_dashboard/device               read the dashboard
+POST /api/family_dashboard/device/action        control lights, scenes, climate
+GET  /api/family_dashboard/device/background    read the uploaded background
+GET  /api/family_dashboard/stream               live updates (server-sent events)
+```
+
+Credentials are sent as an `Authorization: Bearer <token>` header. The
+original `/api/roku_dashboard/...` routes still work, so an already
+sideloaded Roku channel keeps running.
+
+The full contract is in [`api/openapi.yaml`](api/openapi.yaml), with the
+explanations in [`api/SCHEMA.md`](api/SCHEMA.md). A client should check
+`schema_version` in the payload and ignore fields it does not know.
+
 ## How the Roku channel uses this
 
 The companion Roku channel lives at
@@ -204,6 +275,9 @@ setup-screen settings and all-calendars behavior.
 
 ```
 hacs.json
+api/
+  openapi.yaml            the client contract
+  SCHEMA.md               the contract, explained
 custom_components/roku_dashboard/
   manifest.json          integration metadata (version, dependencies)
   const.py               option keys, presets, defaults
@@ -211,13 +285,26 @@ custom_components/roku_dashboard/
   config_flow.py         setup form + options flow (with reload, back button)
   sensor.py              sensor.roku_dashboard_config
   panel.py               Home Assistant menu panel + panel REST API
-  api.py                 paired Roku API (data + control commands)
+  api.py                 client API (data, control commands, live stream)
+  pairing.py             per-device credentials and device-initiated pairing
   web.py                 serves the web app (/family-dashboard)
   services.py / .yaml    set_meal_plan, set_background, set_layout
   strings.json           UI strings (source)
   translations/en.json   UI strings (English)
   www/                   web app, shared rendering and the panel frontend
+tests/                   tests that run without Home Assistant installed
 ```
+
+## Tests
+
+```sh
+python -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest
+```
+
+The tests stub Home Assistant, so they run in a couple of seconds without a
+Home Assistant install.
 
 ## Notes & limits
 
