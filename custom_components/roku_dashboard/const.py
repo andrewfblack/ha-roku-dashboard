@@ -25,6 +25,9 @@ CONF_BACKGROUND_FILE = "background_file"
 CONF_BACKGROUND_NAME = "background_name"
 CONF_BACKGROUND_TYPE = "background_type"
 CONF_BACKGROUND_VERSION = "background_version"
+CONF_CALENDAR_TAB_ENABLED = "calendar_tab_enabled"
+CONF_CALENDAR_SCHEDULE_DAYS = "calendar_schedule_days"
+CONF_CALENDAR_EVENTS_PER_DAY = "calendar_events_per_day"
 CONF_BACKGROUND_RESET = "background_reset"
 
 FORECAST_TYPES = {

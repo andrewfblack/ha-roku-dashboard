@@ -18,6 +18,9 @@ from .const import (
     CONF_BACKGROUND,
     CONF_BACKGROUND_URL,
     CONF_CALENDAR_ENTITIES,
+    CONF_CALENDAR_TAB_ENABLED,
+    CONF_CALENDAR_SCHEDULE_DAYS,
+    CONF_CALENDAR_EVENTS_PER_DAY,
     CONF_INDOOR_ENTITY,
     CONF_LAYOUT,
     CONF_MEAL_ENTITY,
@@ -108,6 +111,9 @@ class RokuDashboardConfigSensor(Entity):
             "climate_entities": options.get(CONF_CLIMATE_ENTITIES, []),
             "meal_entity": meal,
             "calendar_entities": [c for c in calendars if c],
+            "calendar_tab_enabled": options.get(CONF_CALENDAR_TAB_ENABLED, True),
+            "calendar_schedule_days": options.get(CONF_CALENDAR_SCHEDULE_DAYS, 7),
+            "calendar_events_per_day": options.get(CONF_CALENDAR_EVENTS_PER_DAY, 5),
             "us_holidays_enabled": options.get(CONF_US_HOLIDAYS_ENABLED, True),
             "us_observances_enabled": options.get(
                 CONF_US_OBSERVANCES_ENABLED, True

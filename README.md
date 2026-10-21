@@ -19,6 +19,8 @@ Dashboard" channel from inside Home Assistant:
   entities; only their events show on the Home tab. Leave empty to show all.
   The API provides today's agenda, a month grid, and every current-month event
   for the Roku's scrollable agenda.
+- 🗓️ **Skylight-style schedule** — configure a dedicated rolling Calendar tab
+  with 3–7 color-coded day columns and 2–6 visible events per day.
 - 🇺🇸 **US federal holidays** — optionally adds federal holidays and weekend
   observed dates locally, without another calendar account or cloud API.
 - 💝 **Common US observances** — optionally adds Groundhog Day, Valentine's
@@ -61,8 +63,8 @@ Copy `custom_components/roku_dashboard/` into your HA config directory's
      existing `input_text`/`text` helper.
    - **Background** / **Layout** — presets for the Roku channel.
 3. Change anything later via the integration's **Configure** button. It opens
-   a sectioned configurator for Home, Weather, Lights, Scenes/Scripts, Climate,
-   Appearance, and Pairing/Security. The config sensor and Roku endpoint update
+   a sectioned configurator for Home, Calendar, Weather, Lights,
+   Scenes/Scripts, Climate, Appearance, and Pairing/Security. The config sensor and Roku endpoint update
    immediately after each saved section.
 
 The Pairing/Security screen displays the current short pairing code and can

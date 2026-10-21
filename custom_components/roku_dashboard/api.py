@@ -22,6 +22,9 @@ from .const import (
     CONF_BACKGROUND_URL,
     CONF_BACKGROUND_VERSION,
     CONF_CALENDAR_ENTITIES,
+    CONF_CALENDAR_TAB_ENABLED,
+    CONF_CALENDAR_SCHEDULE_DAYS,
+    CONF_CALENDAR_EVENTS_PER_DAY,
     CONF_INDOOR_ENTITY,
     CONF_LAYOUT,
     CONF_MEAL_ENTITY,
@@ -82,10 +85,12 @@ class RokuDashboardView(HomeAssistantView):
         if meal_state and meal_state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
             meal_plan = meal_state.state
 
-        events, month = await self._calendar_data(
+        events, month, schedule = await self._calendar_data(
             calendars,
             options.get(CONF_US_HOLIDAYS_ENABLED, True),
             options.get(CONF_US_OBSERVANCES_ENABLED, True),
+            options.get(CONF_CALENDAR_SCHEDULE_DAYS, 7),
+            options.get(CONF_CALENDAR_EVENTS_PER_DAY, 5),
         )
         weather = await self._weather_data(outdoor, options)
         lights = self._entity_cards(options.get(CONF_LIGHT_ENTITIES, []))
@@ -98,6 +103,7 @@ class RokuDashboardView(HomeAssistantView):
                 "meal_plan": meal_plan,
                 "calendar_events": events,
                 "month_calendar": month,
+                "calendar_schedule": schedule,
                 "background": options.get(CONF_BACKGROUND, "fall"),
                 "background_url": options.get(CONF_BACKGROUND_URL, ""),
                 "background_version": options.get(CONF_BACKGROUND_VERSION, ""),
@@ -107,6 +113,7 @@ class RokuDashboardView(HomeAssistantView):
                 "layout": options.get(CONF_LAYOUT, "home"),
                 "weather": weather,
                 "tabs": {
+                    "calendar": options.get(CONF_CALENDAR_TAB_ENABLED, True),
                     "weather": options.get(CONF_WEATHER_TAB_ENABLED, True),
                     "lights": options.get(CONF_LIGHTS_TAB_ENABLED, True),
                     "scenes": options.get(CONF_SCENES_TAB_ENABLED, True),
@@ -296,18 +303,33 @@ class RokuDashboardView(HomeAssistantView):
         calendars: list[str],
         include_us_holidays: bool,
         include_us_observances: bool,
-    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        schedule_days: int,
+        events_per_day: int,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, Any]]:
         if not calendars:
             calendars = [
                 state.entity_id
                 for state in self.hass.states.async_all(["calendar"])
             ]
         now = dt_util.now()
+        today_date = now.date()
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         if now.month == 12:
             month_end = month_start.replace(year=now.year + 1, month=1)
         else:
             month_end = month_start.replace(month=now.month + 1)
+        schedule_end_date = today_date + timedelta(days=schedule_days)
+        schedule_end = now.replace(
+            year=schedule_end_date.year,
+            month=schedule_end_date.month,
+            day=schedule_end_date.day,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+        fetch_end = max(month_end, schedule_end)
+
         response = {}
         if calendars:
             try:
@@ -317,84 +339,115 @@ class RokuDashboardView(HomeAssistantView):
                     {
                         "entity_id": calendars,
                         "start_date_time": month_start.isoformat(),
-                        "end_date_time": month_end.isoformat(),
+                        "end_date_time": fetch_end.isoformat(),
                     },
                     blocking=True,
                     return_response=True,
                 )
-            except Exception:  # Holidays still work if a provider fails.
+            except Exception:
                 _LOGGER.exception("Unable to fetch Roku dashboard calendar events")
 
+        palette = ["E87979", "69A7E8", "70BF86", "D18BE3", "E6A85C", "58BFC2", "C58A6A"]
         output: list[dict[str, Any]] = []
-        event_days: set[int] = set()
-        for calendar_data in (response or {}).values():
+        for calendar_index, (calendar_id, calendar_data) in enumerate(
+            (response or {}).items()
+        ):
+            state = self.hass.states.get(calendar_id)
+            calendar_name = (
+                state.attributes.get("friendly_name", calendar_id)
+                if state is not None
+                else calendar_id
+            )
+            color = palette[calendar_index % len(palette)]
             for event in calendar_data.get("events", []):
-                start = event.get("start", "")
-                start_date = start[:10]
-                if start_date.startswith(f"{now.year:04d}-{now.month:02d}-"):
-                    try:
-                        event_days.add(int(start_date[-2:]))
-                    except ValueError:
-                        pass
+                start_value = event.get("start", "")
                 output.append(
                     {
                         "title": event.get("summary", "Untitled"),
-                        "start": start,
-                        "all_day": "T" not in start,
+                        "start": start_value,
+                        "all_day": "T" not in start_value,
+                        "calendar_id": calendar_id,
+                        "calendar_name": calendar_name,
+                        "color": color,
                     }
                 )
-        output.sort(key=lambda item: item["start"])
+
+        generated: list[tuple[date, str]] = []
+        years = {month_start.year, fetch_end.year}
         if include_us_holidays:
-            for holiday in self._us_federal_holidays(now.year):
-                if holiday[0].year == now.year and holiday[0].month == now.month:
-                    output.append(
-                        {
-                            "title": holiday[1],
-                            "start": holiday[0].isoformat(),
-                            "all_day": True,
-                        }
-                    )
-                    event_days.add(holiday[0].day)
-            # New Year's observed day may land in the previous December.
-            if now.month == 12:
-                for holiday in self._us_federal_holidays(now.year + 1):
-                    if holiday[0].year == now.year and holiday[0].month == 12:
-                        output.append(
-                            {
-                                "title": holiday[1],
-                                "start": holiday[0].isoformat(),
-                                "all_day": True,
-                            }
-                        )
-                        event_days.add(holiday[0].day)
-            output.sort(key=lambda item: item["start"])
+            for year in years:
+                generated.extend(self._us_federal_holidays(year))
         if include_us_observances:
-            for observance in self._us_observances(now.year):
-                if observance[0].month == now.month:
-                    output.append(
-                        {
-                            "title": observance[1],
-                            "start": observance[0].isoformat(),
-                            "all_day": True,
-                        }
-                    )
-                    event_days.add(observance[0].day)
-            output.sort(key=lambda item: item["start"])
-        today = now.date().isoformat()
+            for year in years:
+                generated.extend(self._us_observances(year))
+        for event_date, title in generated:
+            if month_start.date() <= event_date < fetch_end.date():
+                output.append(
+                    {
+                        "title": title,
+                        "start": event_date.isoformat(),
+                        "all_day": True,
+                        "calendar_id": "calendar.us_holidays",
+                        "calendar_name": "US Holidays",
+                        "color": "E5A84B",
+                    }
+                )
+
+        # Remove exact generated duplicates while preserving separate calendars.
+        deduped: list[dict[str, Any]] = []
+        seen: set[tuple[str, str, str]] = set()
+        for item in output:
+            key = (item["start"], item["title"], item["calendar_id"])
+            if key not in seen:
+                seen.add(key)
+                deduped.append(item)
+        output = sorted(deduped, key=lambda item: item["start"])
+
+        month_prefix = f"{now.year:04d}-{now.month:02d}-"
+        month_events = [item for item in output if item["start"].startswith(month_prefix)]
+        event_days = sorted({int(item["start"][8:10]) for item in month_events})
+        today = today_date.isoformat()
         todays_events = [item for item in output if item["start"][:10] == today][:3]
+
+        schedule_columns = []
+        for offset in range(schedule_days):
+            current = today_date + timedelta(days=offset)
+            current_iso = current.isoformat()
+            day_events = [
+                item for item in output if item["start"][:10] == current_iso
+            ]
+            schedule_columns.append(
+                {
+                    "date": current_iso,
+                    "weekday": current.strftime("%a").upper(),
+                    "day": current.day,
+                    "month": current.strftime("%b").upper(),
+                    "is_today": offset == 0,
+                    "is_weekend": current.weekday() >= 5,
+                    "events": day_events[:events_per_day],
+                    "overflow": max(0, len(day_events) - events_per_day),
+                }
+            )
+
         days_in_month = monthrange(now.year, now.month)[1]
-        # Python Monday=0; Roku grid uses Sunday=0.
         first_weekday = (month_start.weekday() + 1) % 7
-        return todays_events, {
+        month = {
             "title": now.strftime("%B %Y"),
             "year": now.year,
             "month": now.month,
             "today": now.day,
             "days_in_month": days_in_month,
             "first_weekday": first_weekday,
-            "event_days": sorted(event_days),
-            "events": output,
+            "event_days": event_days,
+            "events": month_events,
         }
+        schedule = {
+            "title": f"{today_date.strftime('%B')} {today_date.day}",
+            "days": schedule_columns,
+            "day_count": schedule_days,
+            "events_per_day": events_per_day,
+        }
+        return todays_events, month, schedule
 
     @staticmethod
     def _us_federal_holidays(year: int) -> list[tuple[date, str]]:

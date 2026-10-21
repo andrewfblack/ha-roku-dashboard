@@ -39,6 +39,9 @@ from .const import (
     CONF_BACKGROUND_URL,
     CONF_BACKGROUND_VERSION,
     CONF_CALENDAR_ENTITIES,
+    CONF_CALENDAR_TAB_ENABLED,
+    CONF_CALENDAR_SCHEDULE_DAYS,
+    CONF_CALENDAR_EVENTS_PER_DAY,
     CONF_INDOOR_ENTITY,
     CONF_LAYOUT,
     CONF_MEAL_ENTITY,
@@ -179,6 +182,18 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
             default=defaults.get(CONF_CALENDAR_ENTITIES, vol.UNDEFINED),
         ): calendars,
         vol.Required(
+            CONF_CALENDAR_TAB_ENABLED,
+            default=defaults.get(CONF_CALENDAR_TAB_ENABLED, True),
+        ): bool,
+        vol.Required(
+            CONF_CALENDAR_SCHEDULE_DAYS,
+            default=defaults.get(CONF_CALENDAR_SCHEDULE_DAYS, 7),
+        ): vol.All(vol.Coerce(int), vol.Range(min=3, max=7)),
+        vol.Required(
+            CONF_CALENDAR_EVENTS_PER_DAY,
+            default=defaults.get(CONF_CALENDAR_EVENTS_PER_DAY, 5),
+        ): vol.All(vol.Coerce(int), vol.Range(min=2, max=6)),
+        vol.Required(
             CONF_US_HOLIDAYS_ENABLED,
             default=defaults.get(CONF_US_HOLIDAYS_ENABLED, True),
         ): bool,
@@ -252,10 +267,30 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                     CONF_INDOOR_ENTITY,
                     default=defaults.get(CONF_INDOOR_ENTITY, vol.UNDEFINED),
                 ): indoor,
+                vol.Required(
+                    CONF_MEAL_ENTITY,
+                    default=defaults.get(CONF_MEAL_ENTITY, MEAL_HELPER_ENTITY),
+                ): meal,
+            }
+        ),
+        "calendar": vol.Schema(
+            {
+                vol.Required(
+                    CONF_CALENDAR_TAB_ENABLED,
+                    default=defaults.get(CONF_CALENDAR_TAB_ENABLED, True),
+                ): bool,
                 vol.Optional(
                     CONF_CALENDAR_ENTITIES,
                     default=defaults.get(CONF_CALENDAR_ENTITIES, vol.UNDEFINED),
                 ): calendars,
+                vol.Required(
+                    CONF_CALENDAR_SCHEDULE_DAYS,
+                    default=defaults.get(CONF_CALENDAR_SCHEDULE_DAYS, 7),
+                ): vol.All(vol.Coerce(int), vol.Range(min=3, max=7)),
+                vol.Required(
+                    CONF_CALENDAR_EVENTS_PER_DAY,
+                    default=defaults.get(CONF_CALENDAR_EVENTS_PER_DAY, 5),
+                ): vol.All(vol.Coerce(int), vol.Range(min=2, max=6)),
                 vol.Required(
                     CONF_US_HOLIDAYS_ENABLED,
                     default=defaults.get(CONF_US_HOLIDAYS_ENABLED, True),
@@ -264,10 +299,6 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                     CONF_US_OBSERVANCES_ENABLED,
                     default=defaults.get(CONF_US_OBSERVANCES_ENABLED, True),
                 ): bool,
-                vol.Required(
-                    CONF_MEAL_ENTITY,
-                    default=defaults.get(CONF_MEAL_ENTITY, MEAL_HELPER_ENTITY),
-                ): meal,
             }
         ),
         "weather": vol.Schema(
@@ -386,10 +417,15 @@ class RokuDashboardOptionsFlow(OptionsFlow):
     _SECTION_KEYS = {
         "home": [
             CONF_INDOOR_ENTITY,
+            CONF_MEAL_ENTITY,
+        ],
+        "calendar": [
+            CONF_CALENDAR_TAB_ENABLED,
             CONF_CALENDAR_ENTITIES,
+            CONF_CALENDAR_SCHEDULE_DAYS,
+            CONF_CALENDAR_EVENTS_PER_DAY,
             CONF_US_HOLIDAYS_ENABLED,
             CONF_US_OBSERVANCES_ENABLED,
-            CONF_MEAL_ENTITY,
         ],
         "weather": [
             CONF_WEATHER_TAB_ENABLED,
@@ -420,6 +456,7 @@ class RokuDashboardOptionsFlow(OptionsFlow):
             step_id="init",
             menu_options=[
                 "home",
+                "calendar",
                 "weather",
                 "lights",
                 "scenes",
@@ -447,6 +484,9 @@ class RokuDashboardOptionsFlow(OptionsFlow):
 
     async def async_step_home(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("home", user_input)
+
+    async def async_step_calendar(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_section("calendar", user_input)
 
     async def async_step_weather(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("weather", user_input)

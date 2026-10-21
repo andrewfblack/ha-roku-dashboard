@@ -22,7 +22,10 @@
           "climate_tab_enabled": "Enable Climate tab",
           "climate_entities": "Controllable climate entities",
           "us_holidays_enabled": "Add US federal holidays",
-          "us_observances_enabled": "Add common US observances"
+          "us_observances_enabled": "Add common US observances",
+          "calendar_tab_enabled": "Enable Calendar tab",
+          "calendar_schedule_days": "Days shown in schedule (3-7)",
+          "calendar_events_per_day": "Events shown per day (2-6)"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
@@ -40,7 +43,10 @@
           "climate_tab_enabled": "Adds the Climate control tab to Roku.",
           "climate_entities": "Only selected thermostats can be controlled from Roku.",
           "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar.",
-          "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances."
+          "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances.",
+          "calendar_tab_enabled": "Adds a Skylight-style rolling family schedule tab to Roku.",
+          "calendar_schedule_days": "Number of day columns, beginning with today.",
+          "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more."
         }
       },
       "init": {
@@ -64,7 +70,10 @@
           "climate_tab_enabled": "Enable Climate tab",
           "climate_entities": "Controllable climate entities",
           "us_holidays_enabled": "Add US federal holidays",
-          "us_observances_enabled": "Add common US observances"
+          "us_observances_enabled": "Add common US observances",
+          "calendar_tab_enabled": "Enable Calendar tab",
+          "calendar_schedule_days": "Days shown in schedule (3-7)",
+          "calendar_events_per_day": "Events shown per day (2-6)"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
@@ -82,7 +91,10 @@
           "climate_tab_enabled": "Adds the Climate control tab to Roku.",
           "climate_entities": "Only selected thermostats can be controlled from Roku.",
           "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar.",
-          "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances."
+          "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances.",
+          "calendar_tab_enabled": "Adds a Skylight-style rolling family schedule tab to Roku.",
+          "calendar_schedule_days": "Number of day columns, beginning with today.",
+          "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more."
         }
       }
     },
@@ -141,7 +153,8 @@
           "scenes": "Scenes and scripts",
           "climate": "Climate tab",
           "appearance": "Appearance",
-          "pairing": "Pairing and security"
+          "pairing": "Pairing and security",
+          "calendar": "Calendar tab"
         }
       },
       "home": {
@@ -238,6 +251,26 @@
         },
         "data_description": {
           "reset_pairing": "Generate a new short pairing code and revoke the stored Roku device credential."
+        }
+      },
+      "calendar": {
+        "title": "Calendar tab",
+        "description": "Configure the Skylight-style rolling family schedule.",
+        "data": {
+          "calendar_tab_enabled": "Enable Calendar tab",
+          "calendar_entities": "Calendars to display (optional)",
+          "calendar_schedule_days": "Days shown in schedule (3-7)",
+          "calendar_events_per_day": "Events shown per day (2-6)",
+          "us_holidays_enabled": "Add US federal holidays",
+          "us_observances_enabled": "Add common US observances"
+        },
+        "data_description": {
+          "calendar_tab_enabled": "Adds a Skylight-style rolling family schedule tab to Roku.",
+          "calendar_entities": "Only events from the selected calendars are shown on the Home tab. Leave empty to show all calendars.",
+          "calendar_schedule_days": "Number of day columns, beginning with today.",
+          "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more.",
+          "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar.",
+          "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances."
         }
       }
     }
