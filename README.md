@@ -1,5 +1,7 @@
 # Family Dashboard (Home Assistant + HACS)
 
+![Family Dashboard logo](custom_components/roku_dashboard/brand/logo.png)
+
 A Home Assistant **custom integration** that configures the Roku "HA Home
 Dashboard" channel from inside Home Assistant:
 
