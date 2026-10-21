@@ -26,7 +26,16 @@
           "calendar_tab_enabled": "Enable Calendar tab",
           "calendar_schedule_days": "Days shown in schedule (3-7)",
           "calendar_events_per_day": "Events shown per day (2-6)",
-          "access_mode": "Dashboard network access"
+          "access_mode": "Dashboard network access",
+          "dashboard_title": "Dashboard name",
+          "indoor_humidity_entity": "Indoor humidity sensor",
+          "meal_monday": "Monday meal",
+          "meal_tuesday": "Tuesday meal",
+          "meal_wednesday": "Wednesday meal",
+          "meal_thursday": "Thursday meal",
+          "meal_friday": "Friday meal",
+          "meal_saturday": "Saturday meal",
+          "meal_sunday": "Sunday meal"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
@@ -48,7 +57,9 @@
           "calendar_tab_enabled": "Adds a Skylight-style rolling family schedule tab to Roku.",
           "calendar_schedule_days": "Number of day columns, beginning with today.",
           "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more.",
-          "access_mode": "LAN only is safest. Tailscale permits 100.64.0.0/10. External permits existing paired devices over HTTPS; pairing still requires LAN or Tailscale."
+          "access_mode": "LAN only is safest. Tailscale permits 100.64.0.0/10. External permits existing paired devices over HTTPS; pairing still requires LAN or Tailscale.",
+          "dashboard_title": "Name displayed at the top of the web dashboard and Home screen.",
+          "indoor_humidity_entity": "Optional separate humidity sensor shown with the inside temperature."
         }
       },
       "init": {
@@ -76,7 +87,16 @@
           "calendar_tab_enabled": "Enable Calendar tab",
           "calendar_schedule_days": "Days shown in schedule (3-7)",
           "calendar_events_per_day": "Events shown per day (2-6)",
-          "access_mode": "Dashboard network access"
+          "access_mode": "Dashboard network access",
+          "dashboard_title": "Dashboard name",
+          "indoor_humidity_entity": "Indoor humidity sensor",
+          "meal_monday": "Monday meal",
+          "meal_tuesday": "Tuesday meal",
+          "meal_wednesday": "Wednesday meal",
+          "meal_thursday": "Thursday meal",
+          "meal_friday": "Friday meal",
+          "meal_saturday": "Saturday meal",
+          "meal_sunday": "Sunday meal"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
@@ -98,7 +118,9 @@
           "calendar_tab_enabled": "Adds a Skylight-style rolling family schedule tab to Roku.",
           "calendar_schedule_days": "Number of day columns, beginning with today.",
           "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more.",
-          "access_mode": "LAN only is safest. Tailscale permits 100.64.0.0/10. External permits existing paired devices over HTTPS; pairing still requires LAN or Tailscale."
+          "access_mode": "LAN only is safest. Tailscale permits 100.64.0.0/10. External permits existing paired devices over HTTPS; pairing still requires LAN or Tailscale.",
+          "dashboard_title": "Name displayed at the top of the web dashboard and Home screen.",
+          "indoor_humidity_entity": "Optional separate humidity sensor shown with the inside temperature."
         }
       }
     },
@@ -159,7 +181,8 @@
           "appearance": "Appearance",
           "pairing": "Pairing and security",
           "calendar": "Calendar tab",
-          "access": "Network access"
+          "access": "Network access",
+          "meals": "Weekly meal plan"
         }
       },
       "home": {
@@ -170,14 +193,16 @@
           "calendar_entities": "Calendars to display (optional)",
           "meal_entity": "Meal plan helper",
           "us_holidays_enabled": "Add US federal holidays",
-          "us_observances_enabled": "Add common US observances"
+          "us_observances_enabled": "Add common US observances",
+          "indoor_humidity_entity": "Indoor humidity sensor"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
           "calendar_entities": "Only events from the selected calendars are shown on the Home tab. Leave empty to show all calendars.",
           "meal_entity": "Text helper shown in the meal-plan panel.",
           "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar.",
-          "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances."
+          "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances.",
+          "indoor_humidity_entity": "Optional separate humidity sensor shown with the inside temperature."
         }
       },
       "weather": {
@@ -240,12 +265,14 @@
           "background_url": "Background image URL (used with Custom)",
           "layout": "Layout",
           "background_file": "Upload background image",
-          "background_reset": "Remove uploaded background"
+          "background_reset": "Remove uploaded background",
+          "dashboard_title": "Dashboard name"
         },
         "data_description": {
           "background_url": "Any image URL Home Assistant can reach, e.g. /local/fall.jpg",
           "background_file": "Upload a JPEG, PNG, or WebP image from this device. It is stored by Home Assistant and served only to paired Roku devices.",
-          "background_reset": "Delete the uploaded image and return to the Fall background."
+          "background_reset": "Delete the uploaded image and return to the Fall background.",
+          "dashboard_title": "Name displayed at the top of the web dashboard and Home screen."
         }
       },
       "pairing": {
@@ -286,6 +313,23 @@
         },
         "data_description": {
           "access_mode": "LAN only is safest. Tailscale permits 100.64.0.0/10. External permits existing paired devices over HTTPS; pairing still requires LAN or Tailscale."
+        }
+      },
+      "meals": {
+        "title": "Weekly meal plan",
+        "description": "Set each day\u2019s meal. The legacy meal helper remains available as a fallback.",
+        "data": {
+          "meal_entity": "Meal plan helper",
+          "meal_monday": "Monday meal",
+          "meal_tuesday": "Tuesday meal",
+          "meal_wednesday": "Wednesday meal",
+          "meal_thursday": "Thursday meal",
+          "meal_friday": "Friday meal",
+          "meal_saturday": "Saturday meal",
+          "meal_sunday": "Sunday meal"
+        },
+        "data_description": {
+          "meal_entity": "Optional legacy helper; structured daily meals take priority."
         }
       }
     }

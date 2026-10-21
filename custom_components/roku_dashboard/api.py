@@ -27,9 +27,12 @@ from .const import (
     CONF_CALENDAR_TAB_ENABLED,
     CONF_CALENDAR_SCHEDULE_DAYS,
     CONF_CALENDAR_EVENTS_PER_DAY,
+    CONF_DASHBOARD_TITLE,
     CONF_INDOOR_ENTITY,
+    CONF_INDOOR_HUMIDITY_ENTITY,
     CONF_LAYOUT,
     CONF_MEAL_ENTITY,
+    MEAL_DAY_KEYS,
     CONF_OUTDOOR_ENTITY,
     CONF_PAIRING_CODE,
     CONF_DEVICE_TOKEN,
@@ -72,6 +75,7 @@ class RokuDashboardView(HomeAssistantView):
 
         options = entry.options
         indoor = options.get(CONF_INDOOR_ENTITY, "")
+        indoor_humidity = options.get(CONF_INDOOR_HUMIDITY_ENTITY, "")
         outdoor = options.get(CONF_OUTDOOR_ENTITY, "")
         meal = options.get(CONF_MEAL_ENTITY, "")
         calendars = options.get(CONF_CALENDAR_ENTITIES, [])
@@ -79,7 +83,7 @@ class RokuDashboardView(HomeAssistantView):
             calendars = [calendars]
 
         states: dict[str, Any] = {}
-        for entity_id in (indoor, outdoor, meal):
+        for entity_id in (indoor, indoor_humidity, outdoor, meal):
             state = self.hass.states.get(entity_id) if entity_id else None
             if state is not None:
                 states[entity_id] = {
@@ -87,10 +91,7 @@ class RokuDashboardView(HomeAssistantView):
                     "attributes": dict(state.attributes),
                 }
 
-        meal_state = self.hass.states.get(meal) if meal else None
-        meal_plan = ""
-        if meal_state and meal_state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
-            meal_plan = meal_state.state
+        meal_plan, weekly_meals = self._meal_data(options, meal)
 
         events, month, schedule = await self._calendar_data(
             calendars,
@@ -106,9 +107,15 @@ class RokuDashboardView(HomeAssistantView):
         payload = {
                 "ok": True,
                 "access_mode": options.get(CONF_ACCESS_MODE, "lan"),
+                "title": options.get(CONF_DASHBOARD_TITLE, "Family Dashboard"),
                 "states": states,
-                "resolved_entities": {"inside": indoor, "outside": outdoor},
+                "resolved_entities": {
+                    "inside": indoor,
+                    "inside_humidity": indoor_humidity,
+                    "outside": outdoor,
+                },
                 "meal_plan": meal_plan,
+                "weekly_meal_plan": weekly_meals,
                 "calendar_events": events,
                 "month_calendar": month,
                 "calendar_schedule": schedule,
@@ -150,6 +157,43 @@ class RokuDashboardView(HomeAssistantView):
         if isinstance(value, str):
             return [value]
         return list(value or [])
+
+    def _meal_data(
+        self, options: dict[str, Any], fallback_entity: str
+    ) -> tuple[str, list[dict[str, Any]]]:
+        """Build today's meal and a Monday-Sunday plan with helper fallback."""
+        day_names = [
+            "Monday", "Tuesday", "Wednesday", "Thursday",
+            "Friday", "Saturday", "Sunday",
+        ]
+        meals = [str(options.get(key, "") or "").strip() for key in MEAL_DAY_KEYS]
+        fallback = ""
+        state = self.hass.states.get(fallback_entity) if fallback_entity else None
+        if state and state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            fallback = state.state.strip()
+
+        if not any(meals) and fallback:
+            # Accept lines such as "Monday: Tacos" from the legacy helper.
+            for line in fallback.splitlines():
+                left, separator, right = line.partition(":")
+                if not separator:
+                    continue
+                for index, day in enumerate(day_names):
+                    if left.strip().lower() in (day.lower(), day[:3].lower()):
+                        meals[index] = right.strip()
+            if not any(meals):
+                meals[dt_util.now().weekday()] = fallback
+
+        today_index = dt_util.now().weekday()
+        weekly = [
+            {
+                "day": day,
+                "meal": meals[index],
+                "is_today": index == today_index,
+            }
+            for index, day in enumerate(day_names)
+        ]
+        return meals[today_index] or "No meal planned", weekly
 
     def _entity_cards(self, configured: Any) -> list[dict[str, Any]]:
         cards: list[dict[str, Any]] = []
@@ -213,6 +257,15 @@ class RokuDashboardView(HomeAssistantView):
         action = str(body.get("action", ""))
         entity_id = str(body.get("entity_id", ""))
         options = entry.options
+        if action == "meal_week":
+            values = body.get("value")
+            if not isinstance(values, list) or len(values) != 7:
+                return self.json({"error": "invalid_meal_plan"}, status_code=400)
+            updated = dict(options)
+            for index, key in enumerate(MEAL_DAY_KEYS):
+                updated[key] = str(values[index] or "").strip()[:120]
+            self.hass.config_entries.async_update_entry(entry, options=updated)
+            return self.json({"ok": True})
         lights = self._as_list(options.get(CONF_LIGHT_ENTITIES, []))
         scenes = self._as_list(options.get(CONF_SCENE_ENTITIES, []))
         climates = self._as_list(options.get(CONF_CLIMATE_ENTITIES, []))

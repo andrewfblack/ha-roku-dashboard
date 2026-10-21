@@ -59,6 +59,15 @@ from .const import (
     CONF_CLIMATE_ENTITIES,
     CONF_PAIRING_CODE,
     CONF_DEVICE_TOKEN,
+    CONF_DASHBOARD_TITLE,
+    CONF_INDOOR_HUMIDITY_ENTITY,
+    CONF_MEAL_MONDAY,
+    CONF_MEAL_TUESDAY,
+    CONF_MEAL_WEDNESDAY,
+    CONF_MEAL_THURSDAY,
+    CONF_MEAL_FRIDAY,
+    CONF_MEAL_SATURDAY,
+    CONF_MEAL_SUNDAY,
     CONF_US_HOLIDAYS_ENABLED,
     CONF_US_OBSERVANCES_ENABLED,
     CREATE_NEW_MEAL_HELPER,
@@ -150,6 +159,10 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
             default=defaults.get(CONF_INDOOR_ENTITY, vol.UNDEFINED),
         ): indoor,
         vol.Optional(
+            CONF_INDOOR_HUMIDITY_ENTITY,
+            default=defaults.get(CONF_INDOOR_HUMIDITY_ENTITY, vol.UNDEFINED),
+        ): EntitySelector(EntitySelectorConfig(domain=["sensor"], multiple=False)),
+        vol.Optional(
             CONF_OUTDOOR_ENTITY,
             default=defaults.get(CONF_OUTDOOR_ENTITY, vol.UNDEFINED),
         ): outdoor,
@@ -221,6 +234,10 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
             CONF_BACKGROUND,
             default=defaults.get(CONF_BACKGROUND, "fall"),
         ): background,
+        vol.Required(
+            CONF_DASHBOARD_TITLE,
+            default=defaults.get(CONF_DASHBOARD_TITLE, "Family Dashboard"),
+        ): vol.All(vol.Coerce(str), vol.Length(min=1, max=60)),
         vol.Optional(
             CONF_BACKGROUND_URL,
             default=defaults.get(CONF_BACKGROUND_URL, vol.UNDEFINED),
@@ -293,10 +310,27 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                     CONF_INDOOR_ENTITY,
                     default=defaults.get(CONF_INDOOR_ENTITY, vol.UNDEFINED),
                 ): indoor,
+                vol.Optional(
+                    CONF_INDOOR_HUMIDITY_ENTITY,
+                    default=defaults.get(CONF_INDOOR_HUMIDITY_ENTITY, vol.UNDEFINED),
+                ): EntitySelector(
+                    EntitySelectorConfig(domain=["sensor"], multiple=False)
+                ),
+            }
+        ),
+        "meals": vol.Schema(
+            {
                 vol.Required(
                     CONF_MEAL_ENTITY,
                     default=defaults.get(CONF_MEAL_ENTITY, MEAL_HELPER_ENTITY),
                 ): meal,
+                vol.Optional(CONF_MEAL_MONDAY, default=defaults.get(CONF_MEAL_MONDAY, "")): vol.Coerce(str),
+                vol.Optional(CONF_MEAL_TUESDAY, default=defaults.get(CONF_MEAL_TUESDAY, "")): vol.Coerce(str),
+                vol.Optional(CONF_MEAL_WEDNESDAY, default=defaults.get(CONF_MEAL_WEDNESDAY, "")): vol.Coerce(str),
+                vol.Optional(CONF_MEAL_THURSDAY, default=defaults.get(CONF_MEAL_THURSDAY, "")): vol.Coerce(str),
+                vol.Optional(CONF_MEAL_FRIDAY, default=defaults.get(CONF_MEAL_FRIDAY, "")): vol.Coerce(str),
+                vol.Optional(CONF_MEAL_SATURDAY, default=defaults.get(CONF_MEAL_SATURDAY, "")): vol.Coerce(str),
+                vol.Optional(CONF_MEAL_SUNDAY, default=defaults.get(CONF_MEAL_SUNDAY, "")): vol.Coerce(str),
             }
         ),
         "calendar": vol.Schema(
@@ -386,6 +420,10 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
         "appearance": vol.Schema(
             {
                 vol.Required(
+                    CONF_DASHBOARD_TITLE,
+                    default=defaults.get(CONF_DASHBOARD_TITLE, "Family Dashboard"),
+                ): vol.All(vol.Coerce(str), vol.Length(min=1, max=60)),
+                vol.Required(
                     CONF_BACKGROUND,
                     default=defaults.get(CONF_BACKGROUND, "fall"),
                 ): background,
@@ -444,7 +482,17 @@ class RokuDashboardOptionsFlow(OptionsFlow):
         "access": [CONF_ACCESS_MODE],
         "home": [
             CONF_INDOOR_ENTITY,
+            CONF_INDOOR_HUMIDITY_ENTITY,
+        ],
+        "meals": [
             CONF_MEAL_ENTITY,
+            CONF_MEAL_MONDAY,
+            CONF_MEAL_TUESDAY,
+            CONF_MEAL_WEDNESDAY,
+            CONF_MEAL_THURSDAY,
+            CONF_MEAL_FRIDAY,
+            CONF_MEAL_SATURDAY,
+            CONF_MEAL_SUNDAY,
         ],
         "calendar": [
             CONF_CALENDAR_TAB_ENABLED,
@@ -464,6 +512,7 @@ class RokuDashboardOptionsFlow(OptionsFlow):
         "scenes": [CONF_SCENES_TAB_ENABLED, CONF_SCENE_ENTITIES],
         "climate": [CONF_CLIMATE_TAB_ENABLED, CONF_CLIMATE_ENTITIES],
         "appearance": [
+            CONF_DASHBOARD_TITLE,
             CONF_BACKGROUND,
             CONF_BACKGROUND_FILE,
             CONF_BACKGROUND_NAME,
@@ -484,6 +533,7 @@ class RokuDashboardOptionsFlow(OptionsFlow):
             menu_options=[
                 "access",
                 "home",
+                "meals",
                 "calendar",
                 "weather",
                 "lights",
@@ -512,6 +562,9 @@ class RokuDashboardOptionsFlow(OptionsFlow):
 
     async def async_step_home(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("home", user_input)
+
+    async def async_step_meals(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_section("meals", user_input)
 
     async def async_step_access(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("access", user_input)

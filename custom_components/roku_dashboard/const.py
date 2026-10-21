@@ -29,6 +29,25 @@ CONF_CALENDAR_TAB_ENABLED = "calendar_tab_enabled"
 CONF_CALENDAR_SCHEDULE_DAYS = "calendar_schedule_days"
 CONF_CALENDAR_EVENTS_PER_DAY = "calendar_events_per_day"
 CONF_ACCESS_MODE = "access_mode"
+CONF_DASHBOARD_TITLE = "dashboard_title"
+CONF_INDOOR_HUMIDITY_ENTITY = "indoor_humidity_entity"
+CONF_MEAL_MONDAY = "meal_monday"
+CONF_MEAL_TUESDAY = "meal_tuesday"
+CONF_MEAL_WEDNESDAY = "meal_wednesday"
+CONF_MEAL_THURSDAY = "meal_thursday"
+CONF_MEAL_FRIDAY = "meal_friday"
+CONF_MEAL_SATURDAY = "meal_saturday"
+CONF_MEAL_SUNDAY = "meal_sunday"
+
+MEAL_DAY_KEYS = [
+    CONF_MEAL_MONDAY,
+    CONF_MEAL_TUESDAY,
+    CONF_MEAL_WEDNESDAY,
+    CONF_MEAL_THURSDAY,
+    CONF_MEAL_FRIDAY,
+    CONF_MEAL_SATURDAY,
+    CONF_MEAL_SUNDAY,
+]
 
 ACCESS_MODES = {
     "lan": "LAN only",

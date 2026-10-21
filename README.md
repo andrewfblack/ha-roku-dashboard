@@ -10,8 +10,13 @@ with the same Home, Calendar, Weather, Lights, Scenes, and Climate experience.
   (`input_text.roku_dashboard_meal_plan`) is created for you, editable from
   the HA UI (Helpers), automations, or the `roku_dashboard.set_meal_plan`
   service. Its value is restored across restarts.
+- 📋 **Weekly meals** — configure Monday–Sunday meals; Home shows today and
+  opens an editable complete week when selected. Changes from web or Roku are
+  saved back to Home Assistant. The legacy helper remains a fallback.
 - 🌡️ **Pick the indoor sensor** — choose which temperature sensor (or
   climate entity) the TV shows as "Inside".
+- 💧 **Separate indoor humidity** — optionally select a dedicated humidity
+  sensor instead of relying on the climate entity.
 - 🌤️ **Pick the outdoor weather entity** (optional — auto-detects `weather.*`).
 - 🌦️ **Configure the Weather tab** — enable/disable it, choose daily or
   hourly forecasts, and show 3–8 forecast periods.
@@ -100,6 +105,11 @@ On **Appearance**, use **Upload background image** to select a JPEG, PNG, or
 WebP from your device. Uploading selects it automatically; **Remove uploaded
 background** deletes it and restores Fall. The file is stored under the Home
 Assistant config directory and is not added to any public media folder.
+Appearance also controls the dashboard name displayed by web and Roku clients.
+
+Both the web and Roku clients return to Home after five minutes without input.
+The Climate interfaces use matching generated artwork for Heat, Cool, Auto,
+Heat/Cool, Dry, Fan, and Off modes.
 
 ## Entities & services
 

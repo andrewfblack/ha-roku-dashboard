@@ -13,7 +13,7 @@
   <div id="background"></div>
   <div id="app">
     <header>
-      <div><h1>Family Dashboard</h1><div id="clock"></div></div>
+      <div><h1 id="dashboardTitle">Family Dashboard</h1><div id="clock"></div></div>
       <nav id="tabs" aria-label="Dashboard tabs"></nav>
       <div class="header-actions"><button id="wake" title="Keep screen awake">☀ Awake</button><button id="settings" title="Connection settings">⚙</button></div>
     </header>
@@ -28,6 +28,12 @@
       <div id="pairError" class="error"></div>
       <button type="submit" class="primary">Connect</button>
     </form>
+  </dialog>
+  <dialog id="mealDialog">
+    <h2>Weekly Meal Plan</h2>
+    <div id="weeklyMeals" class="week-meals"></div>
+    <button id="saveMeals" class="primary">Save week</button>
+    <button id="closeMeals">Cancel</button>
   </dialog>
   <script type="module" src="/family-dashboard/app.js"></script>
 </body>
