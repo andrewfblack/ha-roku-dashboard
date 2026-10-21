@@ -3,7 +3,7 @@ const icons={sunny:'☀️','clear-night':'🌙',cloudy:'☁️',partlycloudy:'�
 const weatherImage=c=>`/family-dashboard/weather/${icons[c]?c:'unknown'}.png`;const climateImage=m=>`/family-dashboard/climate/${['auto','heat_cool','heat','cool','dry','fan_only','off'].includes(m)?m:'auto'}.png`;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const api=()=>`/api/roku_dashboard/${encodeURIComponent(token)}`;
-function friendlyError(value){if(value==='network_access_denied')return 'Access denied by network policy. For this Tailscale address, choose LAN and Tailscale under Home Assistant → Roku Dashboard → Configure → Network access.';return value||'Unknown error'}
+function friendlyError(value){if(value==='network_access_denied')return 'Access denied by network policy. For this Tailscale address, choose LAN and Tailscale under Home Assistant → Family Dashboard → Configure → Network access.';return value||'Unknown error'}
 function showNotice(message='',kind='error'){const n=$('#notice');n.textContent=message;n.className=kind==='info'?'info':'';n.hidden=!message}
 function isTailscaleHost(){const p=location.hostname.split('.').map(Number);return p.length===4&&p[0]===100&&p[1]>=64&&p[1]<=127}
 const time=v=>!v?'':v.includes('T')?new Date(v).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'All day';

@@ -1,4 +1,4 @@
-"""Constants for the Roku Dashboard integration."""
+"""Constants for the Family Dashboard integration."""
 
 DOMAIN = "roku_dashboard"
 

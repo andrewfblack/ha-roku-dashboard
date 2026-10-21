@@ -1,4 +1,4 @@
-# Roku Dashboard (Home Assistant + HACS)
+# Family Dashboard (Home Assistant + HACS)
 
 A Home Assistant **custom integration** that configures the Roku "HA Home
 Dashboard" channel from inside Home Assistant:
@@ -56,7 +56,7 @@ with the same Home, Calendar, Weather, Lights, Scenes, and Climate experience.
 1. HACS → **Integrations** → ⋮ → **Custom repositories**.
 2. Repository URL: `https://github.com/andrewfblack/ha-roku-dashboard`, category
    **Integration**.
-3. Install **Roku Dashboard**, restart Home Assistant.
+3. Install **Family Dashboard**, restart Home Assistant.
 
 ### Manual
 Copy `custom_components/roku_dashboard/` into your HA config directory's
@@ -64,7 +64,7 @@ Copy `custom_components/roku_dashboard/` into your HA config directory's
 
 ## Configuration
 
-1. **Settings → Devices & services → Add integration → Roku Dashboard**.
+1. **Settings → Devices & services → Add integration → Family Dashboard**.
 2. In the setup form:
    - **Indoor temperature entity** (required) — e.g. `sensor.living_room_temperature`
      or a `climate.*` entity.

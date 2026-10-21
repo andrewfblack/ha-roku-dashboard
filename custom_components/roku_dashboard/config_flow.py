@@ -1,4 +1,4 @@
-"""Config and options flow for Roku Dashboard."""
+"""Config and options flow for Family Dashboard."""
 
 from __future__ import annotations
 
@@ -462,7 +462,7 @@ class RokuDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                 user_input[CONF_MEAL_ENTITY] = MEAL_HELPER_ENTITY
             await self.async_set_unique_id(DOMAIN)
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(title="Roku Dashboard", data={}, options=user_input)
+            return self.async_create_entry(title="Family Dashboard", data={}, options=user_input)
 
         return self.async_show_form(
             step_id="user", data_schema=_schema({}, self.hass)
@@ -476,7 +476,7 @@ class RokuDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class RokuDashboardOptionsFlow(OptionsFlow):
-    """Sectioned Roku Dashboard configurator."""
+    """Sectioned Family Dashboard configurator."""
 
     _SECTION_KEYS = {
         "access": [CONF_ACCESS_MODE],

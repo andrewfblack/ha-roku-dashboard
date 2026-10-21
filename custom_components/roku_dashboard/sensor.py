@@ -1,4 +1,4 @@
-"""Sensor platform for Roku Dashboard.
+"""Sensor platform for Family Dashboard.
 
 Publishes sensor.roku_dashboard_config: a JSON blob the Roku channel reads
 (via /api/states) to learn which entities, calendars, background and layout
@@ -78,8 +78,8 @@ class RokuDashboardConfigSensor(Entity):
         self.entity_id = f"sensor.{DOMAIN}_config"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": "Roku Dashboard",
-            "manufacturer": "Roku Dashboard",
+            "name": "Family Dashboard",
+            "manufacturer": "Family Dashboard",
             "model": "HACS custom integration",
         }
 

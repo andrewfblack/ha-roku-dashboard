@@ -1,4 +1,4 @@
-"""Services for the Roku Dashboard integration."""
+"""Services for the Family Dashboard integration."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ ATTR_ENTITY_ID = "entity_id"
 
 
 def async_setup_services(hass: HomeAssistant) -> None:
-    """Register the Roku Dashboard services (idempotent, call from the loop)."""
+    """Register the Family Dashboard services (idempotent, call from the loop)."""
     if hass.data.get(DOMAIN, {}).get("services_registered"):
         return
     hass.data.setdefault(DOMAIN, {})["services_registered"] = True

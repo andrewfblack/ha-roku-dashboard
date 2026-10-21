@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Set up Roku Dashboard",
+        "title": "Set up Family Dashboard",
         "description": "Pick what your Roku Home dashboard should show. The meal-plan helper is created for you; you can change everything later in the integration's options.",
         "data": {
           "indoor_entity": "Indoor temperature entity",
@@ -63,7 +63,7 @@
         }
       },
       "init": {
-        "title": "Roku Dashboard options",
+        "title": "Family Dashboard options",
         "description": "Update sensors, calendars, helper, background and layout. The Roku channel picks up changes on its next refresh.",
         "data": {
           "indoor_entity": "Indoor temperature entity",
@@ -125,7 +125,7 @@
       }
     },
     "abort": {
-      "already_configured": "Roku Dashboard is already configured."
+      "already_configured": "Family Dashboard is already configured."
     }
   },
   "services": {
@@ -171,7 +171,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "Configure Roku Dashboard",
+        "title": "Configure Family Dashboard",
         "menu_options": {
           "home": "Home tab",
           "weather": "Weather tab",

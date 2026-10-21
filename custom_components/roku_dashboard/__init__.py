@@ -1,4 +1,4 @@
-"""Roku Dashboard integration.
+"""Family Dashboard integration.
 
 Bridges your Roku HA Dashboard channel to Home Assistant:
 - creates (and owns) a meal-planner text helper,
@@ -43,7 +43,7 @@ PLATFORMS = ["sensor"]
 
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
-    """Set up the Roku Dashboard component (services are registered here)."""
+    """Set up the Family Dashboard component (services are registered here)."""
     hass.data.setdefault(DOMAIN, {})
     async_setup_services(hass)
     hass.http.register_view(RokuDashboardView(hass))
@@ -55,8 +55,12 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up a Roku Dashboard config entry."""
+    """Set up a Family Dashboard config entry."""
     hass.data.setdefault(DOMAIN, {})
+
+    # Update existing entries created before the visible integration rename.
+    if entry.title != "Family Dashboard":
+        hass.config_entries.async_update_entry(entry, title="Family Dashboard")
 
     if not entry.data.get(CONF_PAIRING_CODE):
         data = dict(entry.data)
