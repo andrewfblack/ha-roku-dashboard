@@ -21,6 +21,7 @@ from homeassistant.helpers.storage import Store
 
 from .const import (
     CONF_MEAL_ENTITY,
+    CONF_PANEL_ENABLED,
     CONF_PAIRING_CODE,
     CONF_DEVICE_TOKEN,
     DOMAIN,
@@ -34,6 +35,14 @@ from .api import (
     RokuDashboardActionView,
     RokuDashboardBackgroundView,
     RokuDashboardView,
+)
+from .panel import (
+    FamilyDashboardPanelActionView,
+    FamilyDashboardPanelBackgroundView,
+    FamilyDashboardPanelSettingsView,
+    FamilyDashboardPanelView,
+    async_setup_panel,
+    async_unsetup_panel,
 )
 from .web import FamilyDashboardAssetView, FamilyDashboardWebView
 
@@ -51,6 +60,10 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     hass.http.register_view(RokuDashboardBackgroundView(hass))
     hass.http.register_view(FamilyDashboardWebView)
     hass.http.register_view(FamilyDashboardAssetView)
+    hass.http.register_view(FamilyDashboardPanelView(hass))
+    hass.http.register_view(FamilyDashboardPanelActionView(hass))
+    hass.http.register_view(FamilyDashboardPanelSettingsView(hass))
+    hass.http.register_view(FamilyDashboardPanelBackgroundView(hass))
     return True
 
 
@@ -111,12 +124,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_update_listener))
+    await _async_setup_panel(hass, entry)
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    try:
+        async_unsetup_panel(hass)
+    except Exception:
+        _LOGGER.exception("Unable to remove the Family Dashboard panel")
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def _async_setup_panel(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> None:
+    """Add the Family Dashboard panel to the Home Assistant menu."""
+    if not entry.options.get(CONF_PANEL_ENABLED, True):
+        async_unsetup_panel(hass)
+        return
+    try:
+        await async_setup_panel(hass)
+    except Exception:
+        _LOGGER.exception("Unable to register the Family Dashboard panel")
 
 
 async def _update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:

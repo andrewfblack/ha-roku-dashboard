@@ -49,6 +49,12 @@ with the same Home, Calendar, Weather, Lights, Scenes, and Climate experience.
   only the entities and calendars selected for this dashboard.
 - 🌐 **Interactive PWA** — mouse/touch controls, fullscreen display, screen
   wake lock, automatic refresh, and install-to-home-screen support.
+- 🍔 **Home Assistant panel** — optional entry in the Home Assistant
+  (hamburger) menu that shows the dashboard and lets you change the dashboard
+  configuration without leaving Home Assistant.
+- ↩️ **Settings you can walk back out of** — every section of the configurator
+  has a "back to the options menu" toggle, and saving a section returns to the
+  section list instead of closing the dialog.
 - 🔒 **Network policy** — LAN-only by default, with explicit LAN + Tailscale
   and external HTTPS modes. Short-code pairing remains local/Tailscale only.
 
@@ -78,12 +84,37 @@ Copy `custom_components/roku_dashboard/` into your HA config directory's
    - **Background** / **Layout** — presets for the Roku channel.
 3. Change anything later via the integration's **Configure** button. It opens
    a sectioned configurator for Network Access, Home, Calendar, Weather, Lights,
-   Scenes/Scripts, Climate, Appearance, and Pairing/Security. The config sensor and Roku endpoint update
-   immediately after each saved section.
+   Scenes/Scripts, Climate, Appearance, Home Assistant menu, and
+   Pairing/Security. The config sensor and Roku endpoint update immediately
+   after each saved section.
+
+   Every section form ends with a **"Go back to the options menu (changes are
+   discarded)"** toggle: turn it on and submit to leave the section without
+   saving. Saving a section keeps the dialog open and returns to the section
+   list, so you can continue with another section (or close the dialog when
+   you are done).
 
 The Pairing/Security screen displays the current short pairing code and can
 revoke paired Roku credentials. Reset pairing only when you intend to reconnect
 the TV with a newly generated code.
+
+## Home Assistant panel
+
+**Configure → Home Assistant menu → Show Family Dashboard in the Home
+Assistant menu** adds a *Family Dashboard* entry to the Home Assistant sidebar
+(hamburger) menu.
+
+- The panel shows the same dashboard as the web app — Home, Calendar, Weather,
+  Lights, Scenes and Climate tabs — without a pairing code, because it uses
+  your Home Assistant session.
+- Administrators get a **⚙ Settings** button that opens the dashboard
+  configuration (name, background, layout, tabs, entities and the weekly meal
+  plan) right inside the panel. Changes are written back to the integration
+  options and reach the Roku and the web app immediately.
+- Turning the option off removes the menu entry again.
+
+The panel lives at `/family-dashboard-panel`; the standalone web app stays at
+`/family-dashboard`.
 
 ## Web app
 
@@ -167,11 +198,15 @@ custom_components/roku_dashboard/
   manifest.json          integration metadata (version, dependencies)
   const.py               option keys, presets, defaults
   __init__.py            entry setup, helper creation, value persistence
-  config_flow.py         setup form + options flow (with reload)
+  config_flow.py         setup form + options flow (with reload, back button)
   sensor.py              sensor.roku_dashboard_config
+  panel.py               Home Assistant menu panel + panel REST API
+  api.py                 paired Roku API (data + control commands)
+  web.py                 serves the web app (/family-dashboard)
   services.py / .yaml    set_meal_plan, set_background, set_layout
   strings.json           UI strings (source)
   translations/en.json   UI strings (English)
+  www/                   web app, shared rendering and the panel frontend
 ```
 
 ## Notes & limits

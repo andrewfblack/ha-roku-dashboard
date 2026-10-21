@@ -20,6 +20,7 @@ from homeassistant.config_entries import (
 from homeassistant.core import callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     EntitySelector,
     EntitySelectorConfig,
     FileSelector,
@@ -48,6 +49,7 @@ from .const import (
     CONF_LAYOUT,
     CONF_MEAL_ENTITY,
     CONF_OUTDOOR_ENTITY,
+    CONF_PANEL_ENABLED,
     CONF_WEATHER_TAB_ENABLED,
     CONF_FORECAST_TYPE,
     CONF_FORECAST_COUNT,
@@ -72,12 +74,53 @@ from .const import (
     CONF_US_OBSERVANCES_ENABLED,
     CREATE_NEW_MEAL_HELPER,
     DOMAIN,
+    FORM_BACK,
     LAYOUTS,
     FORECAST_TYPES,
     MEAL_HELPER_ENTITY,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Label shown in the options menu and in the "saved" confirmation.
+SECTION_LABELS = {
+    "access": "Network access",
+    "home": "Home tab",
+    "meals": "Weekly meal plan",
+    "calendar": "Calendar tab",
+    "weather": "Weather tab",
+    "lights": "Lights tab",
+    "scenes": "Scenes and scripts",
+    "climate": "Climate tab",
+    "appearance": "Appearance",
+    "panel": "Home Assistant menu",
+    "pairing": "Pairing and security",
+}
+
+MENU_OPTIONS = [
+    "access",
+    "home",
+    "meals",
+    "calendar",
+    "weather",
+    "lights",
+    "scenes",
+    "climate",
+    "appearance",
+    "panel",
+    "pairing",
+]
+
+
+def _back_field() -> dict[Any, Any]:
+    """The "back to the options menu" toggle added to every section form."""
+    return {vol.Optional(FORM_BACK, default=False): BooleanSelector()}
+
+
+def _section_schema(fields: dict[Any, Any]) -> vol.Schema:
+    """Build a section schema that can be left again without saving."""
+    fields.update(_back_field())
+    return vol.Schema(fields)
 
 
 def _meal_entity_options(hass) -> list[dict[str, str]]:
@@ -246,6 +289,10 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
             CONF_LAYOUT,
             default=defaults.get(CONF_LAYOUT, "home"),
         ): layout,
+        vol.Required(
+            CONF_PANEL_ENABLED,
+            default=defaults.get(CONF_PANEL_ENABLED, True),
+        ): bool,
     }
     return vol.Schema(schema)
 
@@ -296,7 +343,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
         )
     )
     return {
-        "access": vol.Schema(
+        "access": _section_schema(
             {
                 vol.Required(
                     CONF_ACCESS_MODE,
@@ -304,7 +351,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): access_mode,
             }
         ),
-        "home": vol.Schema(
+        "home": _section_schema(
             {
                 vol.Required(
                     CONF_INDOOR_ENTITY,
@@ -318,7 +365,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ),
             }
         ),
-        "meals": vol.Schema(
+        "meals": _section_schema(
             {
                 vol.Required(
                     CONF_MEAL_ENTITY,
@@ -333,7 +380,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 vol.Optional(CONF_MEAL_SUNDAY, default=defaults.get(CONF_MEAL_SUNDAY, "")): vol.Coerce(str),
             }
         ),
-        "calendar": vol.Schema(
+        "calendar": _section_schema(
             {
                 vol.Required(
                     CONF_CALENDAR_TAB_ENABLED,
@@ -361,7 +408,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): bool,
             }
         ),
-        "weather": vol.Schema(
+        "weather": _section_schema(
             {
                 vol.Required(
                     CONF_WEATHER_TAB_ENABLED,
@@ -381,7 +428,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): vol.All(vol.Coerce(int), vol.Range(min=3, max=8)),
             }
         ),
-        "lights": vol.Schema(
+        "lights": _section_schema(
             {
                 vol.Required(
                     CONF_LIGHTS_TAB_ENABLED,
@@ -393,7 +440,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): lights,
             }
         ),
-        "scenes": vol.Schema(
+        "scenes": _section_schema(
             {
                 vol.Required(
                     CONF_SCENES_TAB_ENABLED,
@@ -405,7 +452,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): scenes,
             }
         ),
-        "climate": vol.Schema(
+        "climate": _section_schema(
             {
                 vol.Required(
                     CONF_CLIMATE_TAB_ENABLED,
@@ -417,7 +464,15 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): climates,
             }
         ),
-        "appearance": vol.Schema(
+        "panel": _section_schema(
+            {
+                vol.Required(
+                    CONF_PANEL_ENABLED,
+                    default=defaults.get(CONF_PANEL_ENABLED, True),
+                ): bool,
+            }
+        ),
+        "appearance": _section_schema(
             {
                 vol.Required(
                     CONF_DASHBOARD_TITLE,
@@ -511,6 +566,7 @@ class RokuDashboardOptionsFlow(OptionsFlow):
         "lights": [CONF_LIGHTS_TAB_ENABLED, CONF_LIGHT_ENTITIES],
         "scenes": [CONF_SCENES_TAB_ENABLED, CONF_SCENE_ENTITIES],
         "climate": [CONF_CLIMATE_TAB_ENABLED, CONF_CLIMATE_ENTITIES],
+        "panel": [CONF_PANEL_ENABLED],
         "appearance": [
             CONF_DASHBOARD_TITLE,
             CONF_BACKGROUND,
@@ -524,30 +580,28 @@ class RokuDashboardOptionsFlow(OptionsFlow):
         ],
     }
 
+    def _async_menu(self, message: str = "") -> ConfigFlowResult:
+        """Show the section menu, optionally with a status message."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=list(MENU_OPTIONS),
+            description_placeholders={"message": message},
+        )
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Show the configuration section menu."""
-        return self.async_show_menu(
-            step_id="init",
-            menu_options=[
-                "access",
-                "home",
-                "meals",
-                "calendar",
-                "weather",
-                "lights",
-                "scenes",
-                "climate",
-                "appearance",
-                "pairing",
-            ],
-        )
+        return self._async_menu()
 
     async def _async_section(
         self, step_id: str, user_input: dict[str, Any] | None
     ) -> ConfigFlowResult:
         if user_input is not None:
+            if user_input.pop(FORM_BACK, False):
+                return self._async_menu(
+                    f"No changes were saved to the {SECTION_LABELS[step_id]}."
+                )
             options = dict(self.config_entry.options)
             for key in self._SECTION_KEYS[step_id]:
                 options.pop(key, None)
@@ -556,7 +610,12 @@ class RokuDashboardOptionsFlow(OptionsFlow):
             if not user_input.get(CONF_BACKGROUND_URL):
                 user_input.pop(CONF_BACKGROUND_URL, None)
             options.update(user_input)
-            return self.async_create_entry(data=options)
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, options=options
+            )
+            return self._async_menu(
+                f"Saved the {SECTION_LABELS[step_id]} settings."
+            )
         schema = _section_schemas(dict(self.config_entry.options), self.hass)[step_id]
         return self.async_show_form(step_id=step_id, data_schema=schema)
 
@@ -584,12 +643,20 @@ class RokuDashboardOptionsFlow(OptionsFlow):
     async def async_step_climate(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("climate", user_input)
 
+    async def async_step_panel(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_section("panel", user_input)
+
     async def async_step_appearance(self, user_input=None) -> ConfigFlowResult:
         schema = _section_schemas(dict(self.config_entry.options), self.hass)[
             "appearance"
         ]
         if user_input is None:
             return self.async_show_form(step_id="appearance", data_schema=schema)
+
+        if user_input.pop(FORM_BACK, False):
+            return self._async_menu(
+                f"No changes were saved to the {SECTION_LABELS['appearance']}."
+            )
 
         options = dict(self.config_entry.options)
         for key in self._SECTION_KEYS["appearance"]:
@@ -626,7 +693,12 @@ class RokuDashboardOptionsFlow(OptionsFlow):
         if not user_input.get(CONF_BACKGROUND_URL):
             user_input.pop(CONF_BACKGROUND_URL, None)
         options.update(user_input)
-        return self.async_create_entry(data=options)
+        self.hass.config_entries.async_update_entry(
+            self.config_entry, options=options
+        )
+        return self._async_menu(
+            f"Saved the {SECTION_LABELS['appearance']} settings."
+        )
 
     def _background_path(self) -> Path:
         return Path(self.hass.config.path("roku_dashboard", "background"))
@@ -664,6 +736,10 @@ class RokuDashboardOptionsFlow(OptionsFlow):
 
     async def async_step_pairing(self, user_input=None) -> ConfigFlowResult:
         if user_input is not None:
+            if user_input.pop(FORM_BACK, False):
+                return self._async_menu(
+                    f"No changes were saved to the {SECTION_LABELS['pairing']}."
+                )
             if user_input.get("reset_pairing", False):
                 data = dict(self.config_entry.data)
                 data[CONF_PAIRING_CODE] = secrets.token_hex(4).upper()
@@ -671,10 +747,20 @@ class RokuDashboardOptionsFlow(OptionsFlow):
                 self.hass.config_entries.async_update_entry(
                     self.config_entry, data=data
                 )
-            return self.async_create_entry(data=dict(self.config_entry.options))
+                return self._async_menu(
+                    "Pairing was reset. Use the new pairing code on your device."
+                )
+            return self._async_menu(
+                f"Saved the {SECTION_LABELS['pairing']} settings."
+            )
         return self.async_show_form(
             step_id="pairing",
-            data_schema=vol.Schema({vol.Required("reset_pairing", default=False): bool}),
+            data_schema=vol.Schema(
+                {
+                    vol.Required("reset_pairing", default=False): bool,
+                    **_back_field(),
+                }
+            ),
             description_placeholders={
                 "pairing_code": self.config_entry.data.get(CONF_PAIRING_CODE, "")
             },

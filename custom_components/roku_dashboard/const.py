@@ -38,6 +38,16 @@ CONF_MEAL_THURSDAY = "meal_thursday"
 CONF_MEAL_FRIDAY = "meal_friday"
 CONF_MEAL_SATURDAY = "meal_saturday"
 CONF_MEAL_SUNDAY = "meal_sunday"
+CONF_PANEL_ENABLED = "panel_enabled"
+
+# Form-only key: the "back to the options menu" toggle in every section form.
+FORM_BACK = "back_to_menu"
+
+# Home Assistant frontend panel (shown in the hamburger/sidebar menu).
+PANEL_URL_PATH = "family-dashboard-panel"
+PANEL_ELEMENT_NAME = "roku-dashboard-panel"
+PANEL_JS_URL = "/family-dashboard/panel.js"
+PANEL_ICON = "mdi:family-tree"
 
 MEAL_DAY_KEYS = [
     CONF_MEAL_MONDAY,

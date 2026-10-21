@@ -10,6 +10,9 @@ _ROOT = Path(__file__).parent / "www"
 _FILES = {
     "app.css": "text/css",
     "app.js": "text/javascript",
+    "dashboard.js": "text/javascript",
+    "panel.css": "text/css",
+    "panel.js": "text/javascript",
     "manifest.webmanifest": "application/manifest+json",
     "sw.js": "text/javascript",
     "icons/icon-192.png": "image/png",
@@ -56,7 +59,14 @@ class FamilyDashboardAssetView(HomeAssistantView):
             content_type = "image/png"
         if content_type is None:
             raise web.HTTPNotFound()
+        # Scripts and styles are revalidated so a dashboard update is picked up
+        # straight away instead of after the browser cache expires.
+        cache = (
+            "no-cache"
+            if content_type in ("text/css", "text/javascript")
+            else "public, max-age=3600"
+        )
         return web.FileResponse(
             _ROOT / asset,
-            headers={"Cache-Control": "public, max-age=3600", "Content-Type": content_type},
+            headers={"Cache-Control": cache, "Content-Type": content_type},
         )

@@ -35,7 +35,8 @@
           "meal_thursday": "Thursday meal",
           "meal_friday": "Friday meal",
           "meal_saturday": "Saturday meal",
-          "meal_sunday": "Sunday meal"
+          "meal_sunday": "Sunday meal",
+          "panel_enabled": "Show Family Dashboard in the Home Assistant menu"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
@@ -59,7 +60,8 @@
           "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more.",
           "access_mode": "LAN only is safest. Tailscale permits 100.64.0.0/10. External permits existing paired devices over HTTPS; pairing still requires LAN or Tailscale.",
           "dashboard_title": "Name displayed at the top of the web dashboard and Home screen.",
-          "indoor_humidity_entity": "Optional separate humidity sensor shown with the inside temperature."
+          "indoor_humidity_entity": "Optional separate humidity sensor shown with the inside temperature.",
+          "panel_enabled": "Adds a Family Dashboard entry to the Home Assistant menu so the dashboard can be opened and edited from inside Home Assistant."
         }
       },
       "init": {
@@ -182,8 +184,10 @@
           "pairing": "Pairing and security",
           "calendar": "Calendar tab",
           "access": "Network access",
-          "meals": "Weekly meal plan"
-        }
+          "meals": "Weekly meal plan",
+          "panel": "Home Assistant menu"
+        },
+        "description": "Update sensors, calendars, helper, background and layout. The Roku channel picks up changes on its next refresh. Saving a section brings you back to this list; every section also has a “go back” toggle to leave it without saving. {message}"
       },
       "home": {
         "title": "Home tab",
@@ -194,7 +198,8 @@
           "meal_entity": "Meal plan helper",
           "us_holidays_enabled": "Add US federal holidays",
           "us_observances_enabled": "Add common US observances",
-          "indoor_humidity_entity": "Indoor humidity sensor"
+          "indoor_humidity_entity": "Indoor humidity sensor",
+          "back_to_menu": "Go back to the options menu (changes are discarded)"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
@@ -212,7 +217,8 @@
           "weather_tab_enabled": "Enable Weather tab",
           "outdoor_entity": "Outdoor weather entity (optional)",
           "forecast_type": "Weather forecast type",
-          "forecast_count": "Number of forecast periods (3-8)"
+          "forecast_count": "Number of forecast periods (3-8)",
+          "back_to_menu": "Go back to the options menu (changes are discarded)"
         },
         "data_description": {
           "weather_tab_enabled": "Adds a dedicated Weather tab to the Roku dashboard.",
@@ -226,7 +232,8 @@
         "description": "Configure the lights tab shown on Roku.",
         "data": {
           "lights_tab_enabled": "Enable Lights tab",
-          "light_entities": "Controllable lights"
+          "light_entities": "Controllable lights",
+          "back_to_menu": "Go back to the options menu (changes are discarded)"
         },
         "data_description": {
           "lights_tab_enabled": "Adds the Lights control tab to Roku.",
@@ -238,7 +245,8 @@
         "description": "Configure the scenes and scripts tab shown on Roku.",
         "data": {
           "scenes_tab_enabled": "Enable Scenes tab",
-          "scene_entities": "Controllable scenes and scripts"
+          "scene_entities": "Controllable scenes and scripts",
+          "back_to_menu": "Go back to the options menu (changes are discarded)"
         },
         "data_description": {
           "scenes_tab_enabled": "Adds the Scenes control tab to Roku.",
@@ -250,7 +258,8 @@
         "description": "Configure the climate tab shown on Roku.",
         "data": {
           "climate_tab_enabled": "Enable Climate tab",
-          "climate_entities": "Controllable climate entities"
+          "climate_entities": "Controllable climate entities",
+          "back_to_menu": "Go back to the options menu (changes are discarded)"
         },
         "data_description": {
           "climate_tab_enabled": "Adds the Climate control tab to Roku.",
@@ -266,7 +275,8 @@
           "layout": "Layout",
           "background_file": "Upload background image",
           "background_reset": "Remove uploaded background",
-          "dashboard_title": "Dashboard name"
+          "dashboard_title": "Dashboard name",
+          "back_to_menu": "Go back to the options menu (changes are discarded)"
         },
         "data_description": {
           "background_url": "Any image URL Home Assistant can reach, e.g. /local/fall.jpg",
@@ -279,7 +289,8 @@
         "title": "Pairing and security",
         "description": "Current pairing code: {pairing_code}. Resetting pairing disconnects every paired Roku and generates a new code.",
         "data": {
-          "reset_pairing": "Reset pairing and disconnect devices"
+          "reset_pairing": "Reset pairing and disconnect devices",
+          "back_to_menu": "Go back to the options menu (changes are discarded)"
         },
         "data_description": {
           "reset_pairing": "Generate a new short pairing code and revoke the stored Roku device credential."
@@ -294,7 +305,8 @@
           "calendar_schedule_days": "Days shown in schedule (3-7)",
           "calendar_events_per_day": "Events shown per day (2-6)",
           "us_holidays_enabled": "Add US federal holidays",
-          "us_observances_enabled": "Add common US observances"
+          "us_observances_enabled": "Add common US observances",
+          "back_to_menu": "Go back to the options menu (changes are discarded)"
         },
         "data_description": {
           "calendar_tab_enabled": "Adds a Skylight-style rolling family schedule tab to Roku.",
@@ -309,7 +321,8 @@
         "title": "Network access",
         "description": "Control where paired dashboard clients may connect. Pairing codes are never accepted from the public internet.",
         "data": {
-          "access_mode": "Dashboard network access"
+          "access_mode": "Dashboard network access",
+          "back_to_menu": "Go back to the options menu (changes are discarded)"
         },
         "data_description": {
           "access_mode": "LAN only is safest. Tailscale permits 100.64.0.0/10. External permits existing paired devices over HTTPS; pairing still requires LAN or Tailscale."
@@ -317,7 +330,7 @@
       },
       "meals": {
         "title": "Weekly meal plan",
-        "description": "Set each day\u2019s meal. The legacy meal helper remains available as a fallback.",
+        "description": "Set each day’s meal. The legacy meal helper remains available as a fallback.",
         "data": {
           "meal_entity": "Meal plan helper",
           "meal_monday": "Monday meal",
@@ -326,10 +339,22 @@
           "meal_thursday": "Thursday meal",
           "meal_friday": "Friday meal",
           "meal_saturday": "Saturday meal",
-          "meal_sunday": "Sunday meal"
+          "meal_sunday": "Sunday meal",
+          "back_to_menu": "Go back to the options menu (changes are discarded)"
         },
         "data_description": {
           "meal_entity": "Optional legacy helper; structured daily meals take priority."
+        }
+      },
+      "panel": {
+        "title": "Home Assistant menu",
+        "description": "Show the Family Dashboard in the Home Assistant sidebar (hamburger) menu.",
+        "data": {
+          "panel_enabled": "Show Family Dashboard in the Home Assistant menu",
+          "back_to_menu": "Go back to the options menu (changes are discarded)"
+        },
+        "data_description": {
+          "panel_enabled": "Adds a Family Dashboard entry to the Home Assistant menu. The panel shows the dashboard and lets you change these settings without leaving Home Assistant."
         }
       }
     }
