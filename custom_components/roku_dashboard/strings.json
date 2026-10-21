@@ -25,7 +25,8 @@
           "us_observances_enabled": "Add common US observances",
           "calendar_tab_enabled": "Enable Calendar tab",
           "calendar_schedule_days": "Days shown in schedule (3-7)",
-          "calendar_events_per_day": "Events shown per day (2-6)"
+          "calendar_events_per_day": "Events shown per day (2-6)",
+          "access_mode": "Dashboard network access"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
@@ -46,7 +47,8 @@
           "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances.",
           "calendar_tab_enabled": "Adds a Skylight-style rolling family schedule tab to Roku.",
           "calendar_schedule_days": "Number of day columns, beginning with today.",
-          "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more."
+          "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more.",
+          "access_mode": "LAN only is safest. Tailscale permits 100.64.0.0/10. External permits existing paired devices over HTTPS; pairing still requires LAN or Tailscale."
         }
       },
       "init": {
@@ -73,7 +75,8 @@
           "us_observances_enabled": "Add common US observances",
           "calendar_tab_enabled": "Enable Calendar tab",
           "calendar_schedule_days": "Days shown in schedule (3-7)",
-          "calendar_events_per_day": "Events shown per day (2-6)"
+          "calendar_events_per_day": "Events shown per day (2-6)",
+          "access_mode": "Dashboard network access"
         },
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
@@ -94,7 +97,8 @@
           "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances.",
           "calendar_tab_enabled": "Adds a Skylight-style rolling family schedule tab to Roku.",
           "calendar_schedule_days": "Number of day columns, beginning with today.",
-          "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more."
+          "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more.",
+          "access_mode": "LAN only is safest. Tailscale permits 100.64.0.0/10. External permits existing paired devices over HTTPS; pairing still requires LAN or Tailscale."
         }
       }
     },
@@ -154,7 +158,8 @@
           "climate": "Climate tab",
           "appearance": "Appearance",
           "pairing": "Pairing and security",
-          "calendar": "Calendar tab"
+          "calendar": "Calendar tab",
+          "access": "Network access"
         }
       },
       "home": {
@@ -271,6 +276,16 @@
           "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more.",
           "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar.",
           "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances."
+        }
+      },
+      "access": {
+        "title": "Network access",
+        "description": "Control where paired dashboard clients may connect. Pairing codes are never accepted from the public internet.",
+        "data": {
+          "access_mode": "Dashboard network access"
+        },
+        "data_description": {
+          "access_mode": "LAN only is safest. Tailscale permits 100.64.0.0/10. External permits existing paired devices over HTTPS; pairing still requires LAN or Tailscale."
         }
       }
     }

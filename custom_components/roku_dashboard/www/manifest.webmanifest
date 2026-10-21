@@ -1,0 +1,13 @@
+{
+  "name": "Home Assistant Family Dashboard",
+  "short_name": "Family Dashboard",
+  "start_url": "/family-dashboard",
+  "scope": "/family-dashboard",
+  "display": "standalone",
+  "background_color": "#17100b",
+  "theme_color": "#b9652d",
+  "icons": [
+    {"src":"/family-dashboard/icons/icon-192.png","sizes":"192x192","type":"image/png"},
+    {"src":"/family-dashboard/icons/icon-512.png","sizes":"512x512","type":"image/png"}
+  ]
+}

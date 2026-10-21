@@ -30,7 +30,9 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    ACCESS_MODES,
     BACKGROUNDS,
+    CONF_ACCESS_MODE,
     CONF_BACKGROUND,
     CONF_BACKGROUND_FILE,
     CONF_BACKGROUND_NAME,
@@ -131,8 +133,18 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
             mode=SelectSelectorMode.DROPDOWN,
         )
     )
+    access_mode = SelectSelector(
+        SelectSelectorConfig(
+            options=[{"value": key, "label": label} for key, label in ACCESS_MODES.items()],
+            mode=SelectSelectorMode.DROPDOWN,
+        )
+    )
 
     schema: dict[Any, Any] = {
+        vol.Required(
+            CONF_ACCESS_MODE,
+            default=defaults.get(CONF_ACCESS_MODE, "lan"),
+        ): access_mode,
         vol.Required(
             CONF_INDOOR_ENTITY,
             default=defaults.get(CONF_INDOOR_ENTITY, vol.UNDEFINED),
@@ -260,7 +272,21 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
             mode=SelectSelectorMode.DROPDOWN,
         )
     )
+    access_mode = SelectSelector(
+        SelectSelectorConfig(
+            options=[{"value": key, "label": label} for key, label in ACCESS_MODES.items()],
+            mode=SelectSelectorMode.DROPDOWN,
+        )
+    )
     return {
+        "access": vol.Schema(
+            {
+                vol.Required(
+                    CONF_ACCESS_MODE,
+                    default=defaults.get(CONF_ACCESS_MODE, "lan"),
+                ): access_mode,
+            }
+        ),
         "home": vol.Schema(
             {
                 vol.Required(
@@ -415,6 +441,7 @@ class RokuDashboardOptionsFlow(OptionsFlow):
     """Sectioned Roku Dashboard configurator."""
 
     _SECTION_KEYS = {
+        "access": [CONF_ACCESS_MODE],
         "home": [
             CONF_INDOOR_ENTITY,
             CONF_MEAL_ENTITY,
@@ -455,6 +482,7 @@ class RokuDashboardOptionsFlow(OptionsFlow):
         return self.async_show_menu(
             step_id="init",
             menu_options=[
+                "access",
                 "home",
                 "calendar",
                 "weather",
@@ -484,6 +512,9 @@ class RokuDashboardOptionsFlow(OptionsFlow):
 
     async def async_step_home(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("home", user_input)
+
+    async def async_step_access(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_section("access", user_input)
 
     async def async_step_calendar(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("calendar", user_input)

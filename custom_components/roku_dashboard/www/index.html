@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#1b120c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Home Assistant Family Dashboard</title>
+  <link rel="manifest" href="/family-dashboard/manifest.webmanifest">
+  <link rel="stylesheet" href="/family-dashboard/app.css">
+</head>
+<body>
+  <div id="background"></div>
+  <div id="app">
+    <header>
+      <div><h1>Family Dashboard</h1><div id="clock"></div></div>
+      <nav id="tabs" aria-label="Dashboard tabs"></nav>
+      <div class="header-actions"><button id="wake" title="Keep screen awake">☀ Awake</button><button id="settings" title="Connection settings">⚙</button></div>
+    </header>
+    <main id="content"><div class="loading">Loading…</div></main>
+  </div>
+  <dialog id="pairDialog">
+    <form id="pairForm">
+      <h2>Connect to Home Assistant</h2>
+      <p>Enter the current 8-character pairing code from <code>sensor.roku_dashboard_config</code>.</p>
+      <label>Pairing code<input id="pairCode" maxlength="8" autocomplete="one-time-code" required></label>
+      <div id="pairError" class="error"></div>
+      <button type="submit" class="primary">Connect</button>
+    </form>
+  </dialog>
+  <script type="module" src="/family-dashboard/app.js"></script>
+</body>
+</html>

@@ -6,6 +6,7 @@ from calendar import monthrange
 from datetime import date, timedelta
 import logging
 import mimetypes
+import ipaddress
 from pathlib import Path
 import secrets
 from typing import Any
@@ -17,6 +18,7 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_ACCESS_MODE,
     CONF_BACKGROUND,
     CONF_BACKGROUND_TYPE,
     CONF_BACKGROUND_URL,
@@ -62,6 +64,11 @@ class RokuDashboardView(HomeAssistantView):
         entry = self._entry_for_code(code)
         if entry is None:
             return self.json({"error": "invalid_pairing_code"}, status_code=401)
+        is_pairing = secrets.compare_digest(
+            str(entry.data.get(CONF_PAIRING_CODE, "")), code.upper()
+        )
+        if not request_allowed(request, entry, pairing=is_pairing):
+            return self.json({"error": "network_access_denied"}, status_code=403)
 
         options = entry.options
         indoor = options.get(CONF_INDOOR_ENTITY, "")
@@ -107,9 +114,9 @@ class RokuDashboardView(HomeAssistantView):
                 "background": options.get(CONF_BACKGROUND, "fall"),
                 "background_url": options.get(CONF_BACKGROUND_URL, ""),
                 "background_version": options.get(CONF_BACKGROUND_VERSION, ""),
-                "has_uploaded_background": Path(
-                    self.hass.config.path("roku_dashboard", "background")
-                ).is_file(),
+                "has_uploaded_background": bool(
+                    options.get(CONF_BACKGROUND_VERSION)
+                ),
                 "layout": options.get(CONF_LAYOUT, "home"),
                 "weather": weather,
                 "tabs": {
@@ -191,6 +198,8 @@ class RokuDashboardView(HomeAssistantView):
         entry = self._entry_for_code(code)
         if entry is None:
             return self.json({"error": "invalid_pairing_code"}, status_code=401)
+        if not request_allowed(request, entry, pairing=False):
+            return self.json({"error": "network_access_denied"}, status_code=403)
         if not secrets.compare_digest(
             str(entry.data.get(CONF_DEVICE_TOKEN, "")), code.upper()
         ):
@@ -241,6 +250,7 @@ class RokuDashboardView(HomeAssistantView):
             _LOGGER.exception("Roku dashboard command failed")
             return self.json({"error": "service_failed"}, status_code=500)
         return self.json({"ok": True})
+
 
     async def _weather_data(
         self, entity_id: str, options: dict[str, Any]
@@ -523,3 +533,79 @@ class RokuDashboardView(HomeAssistantView):
             (date(year, 10, 31), "Halloween"),
             (date(year, 12, 31), "New Year's Eve"),
         ]
+
+
+class RokuDashboardActionView(RokuDashboardView):
+    """Route control commands to the shared allowlisted action handler."""
+
+    url = "/api/roku_dashboard/{code}/action"
+    name = "api:roku_dashboard_action"
+
+
+def entry_for_code(hass, code: str):
+    """Resolve a config entry by short pairing code or device credential."""
+    return next(
+        (
+            item
+            for item in hass.config_entries.async_entries(DOMAIN)
+            if secrets.compare_digest(
+                str(item.data.get(CONF_PAIRING_CODE, "")), code.upper()
+            )
+            or secrets.compare_digest(
+                str(item.data.get(CONF_DEVICE_TOKEN, "")), code.upper()
+            )
+        ),
+        None,
+    )
+
+
+def request_allowed(request, entry, pairing: bool) -> bool:
+    """Enforce LAN/Tailscale/external policy for paired API requests."""
+    try:
+        address = ipaddress.ip_address(request.remote or "")
+    except ValueError:
+        return False
+    is_lan = address.is_private or address.is_loopback or address.is_link_local
+    is_tailscale = address in ipaddress.ip_network("100.64.0.0/10")
+    if pairing:
+        return is_lan or is_tailscale
+    mode = entry.options.get(CONF_ACCESS_MODE, "lan")
+    if is_lan:
+        return True
+    if is_tailscale:
+        return mode in ("tailscale", "external")
+    if mode != "external":
+        return False
+    return request.secure or request.headers.get("X-Forwarded-Proto") == "https"
+
+
+class RokuDashboardBackgroundView(HomeAssistantView):
+    """Serve the uploaded background to a paired client."""
+
+    url = "/api/roku_dashboard/{code}/background"
+    name = "api:roku_dashboard_background"
+    requires_auth = False
+
+    def __init__(self, hass) -> None:
+        self.hass = hass
+
+    async def get(self, request, code: str):
+        entry = entry_for_code(self.hass, code)
+        if entry is None:
+            return self.json({"error": "invalid_pairing_code"}, status_code=401)
+        if not request_allowed(request, entry, pairing=False):
+            return self.json({"error": "network_access_denied"}, status_code=403)
+        path = Path(self.hass.config.path("roku_dashboard", "background"))
+        if not path.is_file():
+            return self.json({"error": "no_background"}, status_code=404)
+        content_type = (
+            entry.options.get(CONF_BACKGROUND_TYPE)
+            or mimetypes.guess_type(
+                entry.options.get("background_name", path.name)
+            )[0]
+            or "image/jpeg"
+        )
+        return web.FileResponse(
+            path,
+            headers={"Content-Type": content_type, "Cache-Control": "no-store"},
+        )

@@ -15,6 +15,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity import Entity
 
 from .const import (
+    CONF_ACCESS_MODE,
     CONF_BACKGROUND,
     CONF_BACKGROUND_URL,
     CONF_CALENDAR_ENTITIES,
@@ -98,6 +99,7 @@ class RokuDashboardConfigSensor(Entity):
         return {
             "schema": CONFIG_SCHEMA_VERSION,
             "pairing_code": self._entry.data.get(CONF_PAIRING_CODE, ""),
+            "access_mode": options.get(CONF_ACCESS_MODE, "lan"),
             "indoor_entity": indoor,
             "outdoor_entity": outdoor,
             "weather_tab_enabled": options.get(CONF_WEATHER_TAB_ENABLED, True),

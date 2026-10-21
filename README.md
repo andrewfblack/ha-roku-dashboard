@@ -3,6 +3,9 @@
 A Home Assistant **custom integration** that configures the Roku "HA Home
 Dashboard" channel from inside Home Assistant:
 
+It also includes an interactive, installable web app at `/family-dashboard`
+with the same Home, Calendar, Weather, Lights, Scenes, and Climate experience.
+
 - 🍽️ **Creates and owns the meal-planner helper** — an `input_text`
   (`input_text.roku_dashboard_meal_plan`) is created for you, editable from
   the HA UI (Helpers), automations, or the `roku_dashboard.set_meal_plan`
@@ -37,6 +40,10 @@ Dashboard" channel from inside Home Assistant:
 - 🔗 **Short-code pairing** — the TV uses an 8-character code instead of a
   long-lived Home Assistant access token. The local pairing endpoint exposes
   only the entities and calendars selected for this dashboard.
+- 🌐 **Interactive PWA** — mouse/touch controls, fullscreen display, screen
+  wake lock, automatic refresh, and install-to-home-screen support.
+- 🔒 **Network policy** — LAN-only by default, with explicit LAN + Tailscale
+  and external HTTPS modes. Short-code pairing remains local/Tailscale only.
 
 ## Installation (HACS)
 
@@ -63,13 +70,31 @@ Copy `custom_components/roku_dashboard/` into your HA config directory's
      existing `input_text`/`text` helper.
    - **Background** / **Layout** — presets for the Roku channel.
 3. Change anything later via the integration's **Configure** button. It opens
-   a sectioned configurator for Home, Calendar, Weather, Lights,
+   a sectioned configurator for Network Access, Home, Calendar, Weather, Lights,
    Scenes/Scripts, Climate, Appearance, and Pairing/Security. The config sensor and Roku endpoint update
    immediately after each saved section.
 
 The Pairing/Security screen displays the current short pairing code and can
 revoke paired Roku credentials. Reset pairing only when you intend to reconnect
 the TV with a newly generated code.
+
+## Web app
+
+After restarting Home Assistant, open:
+
+```text
+http://<home-assistant-ip>:8123/family-dashboard
+```
+
+Enter the current short pairing code once. The browser stores the exchanged
+device credential locally. Use the browser's install action to add it as a PWA.
+
+Network modes under **Configure → Network access**:
+
+- **LAN only** (default): private/local addresses only.
+- **LAN and Tailscale**: also permits the `100.64.0.0/10` Tailscale range.
+- **External HTTPS**: permits an already-paired client through Nabu Casa or a
+  trusted HTTPS reverse proxy. Pairing codes are still rejected publicly.
 
 On **Appearance**, use **Upload background image** to select a JPEG, PNG, or
 WebP from your device. Uploading selects it automatically; **Remove uploaded
