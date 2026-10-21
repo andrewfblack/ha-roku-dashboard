@@ -105,6 +105,7 @@ class RokuDashboardView(HomeAssistantView):
         climates = self._climate_cards(options.get(CONF_CLIMATE_ENTITIES, []))
         payload = {
                 "ok": True,
+                "access_mode": options.get(CONF_ACCESS_MODE, "lan"),
                 "states": states,
                 "resolved_entities": {"inside": indoor, "outside": outdoor},
                 "meal_plan": meal_plan,
