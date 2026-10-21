@@ -224,9 +224,21 @@ async def _weather_data(
         )
         raw_items = (response or {}).get(entity_id, {}).get("forecast", [])
         for item in raw_items[:count]:
+            forecast_datetime = item.get("datetime", "")
+            parsed = dt_util.parse_datetime(forecast_datetime) if forecast_datetime else None
+            if parsed is not None:
+                parsed = dt_util.as_local(parsed)
+                forecast_label = (
+                    parsed.strftime("%a %I %p").replace(" 0", " ")
+                    if forecast_type == "hourly"
+                    else parsed.strftime("%a").upper()
+                )
+            else:
+                forecast_label = ""
             forecasts.append(
                 {
-                    "datetime": item.get("datetime", ""),
+                    "datetime": forecast_datetime,
+                    "label": forecast_label,
                     "condition": item.get("condition", "unknown"),
                     "temperature": item.get("temperature"),
                     "templow": item.get("templow"),
@@ -368,7 +380,7 @@ async def _calendar_data(
     month_events = [item for item in output if item["start"].startswith(month_prefix)]
     event_days = sorted({int(item["start"][8:10]) for item in month_events})
     today = today_date.isoformat()
-    todays_events = [item for item in output if item["start"][:10] == today][:3]
+    todays_events = [item for item in output if item["start"][:10] == today]
 
     schedule_columns = []
     for offset in range(schedule_days):
@@ -532,7 +544,8 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
         },
         "meal_plan": meal_plan,
         "weekly_meal_plan": weekly_meals,
-        "calendar_events": events,
+        "calendar_events": events[:3],
+        "today_events": events,
         "month_calendar": month,
         "calendar_schedule": schedule,
         "background": options.get(CONF_BACKGROUND, "fall"),
