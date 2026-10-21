@@ -52,11 +52,11 @@ class FamilyDashboardAssetView(HomeAssistantView):
         content_type = _FILES.get(asset)
         if (
             content_type is None
-            and (asset.startswith("weather/") or asset.startswith("climate/"))
-            and asset.endswith(".png")
+            and asset.startswith("mdi/")
+            and asset.endswith(".svg")
             and Path(asset).name == asset.split("/")[-1]
         ):
-            content_type = "image/png"
+            content_type = "image/svg+xml"
         if content_type is None:
             raise web.HTTPNotFound()
         # Scripts and styles are revalidated so a dashboard update is picked up
