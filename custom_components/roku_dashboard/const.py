@@ -21,6 +21,11 @@ CONF_CLIMATE_TAB_ENABLED = "climate_tab_enabled"
 CONF_CLIMATE_ENTITIES = "climate_entities"
 CONF_US_HOLIDAYS_ENABLED = "us_holidays_enabled"
 CONF_US_OBSERVANCES_ENABLED = "us_observances_enabled"
+CONF_BACKGROUND_FILE = "background_file"
+CONF_BACKGROUND_NAME = "background_name"
+CONF_BACKGROUND_TYPE = "background_type"
+CONF_BACKGROUND_VERSION = "background_version"
+CONF_BACKGROUND_RESET = "background_reset"
 
 FORECAST_TYPES = {
     "daily": "Daily forecast",
@@ -41,6 +46,7 @@ BACKGROUNDS = {
     "winter": "Winter",
     "spring": "Spring",
     "summer": "Summer",
+    "uploaded": "Uploaded image",
     "custom_url": "Custom image URL",
 }
 CONF_BACKGROUND_URL = "background_url"

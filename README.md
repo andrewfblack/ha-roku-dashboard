@@ -24,8 +24,9 @@ Dashboard" channel from inside Home Assistant:
 - 💝 **Common US observances** — optionally adds Groundhog Day, Valentine's
   Day, Mardi Gras, St. Patrick's Day, April Fools' Day, Easter, Mother's Day,
   Flag Day, Father's Day, Halloween, and New Year's Eve.
-- 🎨 **Backgrounds** — fall, winter, spring, summer presets, or your own
-  image URL (served from `/local/...`).
+- 🎨 **Backgrounds** — fall, winter, spring, summer presets, an uploaded image
+  from your device, or your own image URL (served from `/local/...`). Uploads
+  are stored by Home Assistant and served only to paired Roku devices.
 - 🧱 **Layout presets** — `home`, `compact`, `meals_first` (and room for more
   later).
 - 📡 **Everything is published on `sensor.roku_dashboard_config`** — a single
@@ -67,6 +68,11 @@ Copy `custom_components/roku_dashboard/` into your HA config directory's
 The Pairing/Security screen displays the current short pairing code and can
 revoke paired Roku credentials. Reset pairing only when you intend to reconnect
 the TV with a newly generated code.
+
+On **Appearance**, use **Upload background image** to select a JPEG, PNG, or
+WebP from your device. Uploading selects it automatically; **Remove uploaded
+background** deletes it and restores Fall. The file is stored under the Home
+Assistant config directory and is not added to any public media folder.
 
 ## Entities & services
 

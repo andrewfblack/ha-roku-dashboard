@@ -216,14 +216,18 @@
       },
       "appearance": {
         "title": "Appearance",
-        "description": "Configure the appearance shown on Roku.",
+        "description": "Choose a seasonal background, upload your own image, or use a custom image URL. Uploading a file sets the background to the uploaded image automatically.",
         "data": {
           "background": "Background",
           "background_url": "Background image URL (used with Custom)",
-          "layout": "Layout"
+          "layout": "Layout",
+          "background_file": "Upload background image",
+          "background_reset": "Remove uploaded background"
         },
         "data_description": {
-          "background_url": "Any image URL Home Assistant can reach, e.g. /local/fall.jpg"
+          "background_url": "Any image URL Home Assistant can reach, e.g. /local/fall.jpg",
+          "background_file": "Upload a JPEG, PNG, or WebP image from this device. It is stored by Home Assistant and served only to paired Roku devices.",
+          "background_reset": "Delete the uploaded image and return to the Fall background."
         }
       },
       "pairing": {

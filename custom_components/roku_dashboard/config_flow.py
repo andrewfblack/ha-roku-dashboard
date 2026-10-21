@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+import mimetypes
+from pathlib import Path
 import secrets
+import shutil
 from typing import Any
 
 import voluptuous as vol
 
+from homeassistant.components.file_upload import process_uploaded_file
 from homeassistant.config_entries import (
     ConfigFlow,
     ConfigFlowResult,
@@ -17,6 +22,8 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     EntitySelector,
     EntitySelectorConfig,
+    FileSelector,
+    FileSelectorConfig,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -25,7 +32,12 @@ from homeassistant.helpers.selector import (
 from .const import (
     BACKGROUNDS,
     CONF_BACKGROUND,
+    CONF_BACKGROUND_FILE,
+    CONF_BACKGROUND_NAME,
+    CONF_BACKGROUND_RESET,
+    CONF_BACKGROUND_TYPE,
     CONF_BACKGROUND_URL,
+    CONF_BACKGROUND_VERSION,
     CONF_CALENDAR_ENTITIES,
     CONF_INDOOR_ENTITY,
     CONF_LAYOUT,
@@ -50,6 +62,8 @@ from .const import (
     FORECAST_TYPES,
     MEAL_HELPER_ENTITY,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _meal_entity_options(hass) -> list[dict[str, str]]:
@@ -318,6 +332,15 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                     CONF_BACKGROUND,
                     default=defaults.get(CONF_BACKGROUND, "fall"),
                 ): background,
+                vol.Optional(CONF_BACKGROUND_FILE): FileSelector(
+                    FileSelectorConfig(
+                        accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                    )
+                ),
+                vol.Required(
+                    CONF_BACKGROUND_RESET,
+                    default=defaults.get(CONF_BACKGROUND_RESET, False),
+                ): bool,
                 vol.Optional(
                     CONF_BACKGROUND_URL,
                     default=defaults.get(CONF_BACKGROUND_URL, vol.UNDEFINED),
@@ -377,7 +400,16 @@ class RokuDashboardOptionsFlow(OptionsFlow):
         "lights": [CONF_LIGHTS_TAB_ENABLED, CONF_LIGHT_ENTITIES],
         "scenes": [CONF_SCENES_TAB_ENABLED, CONF_SCENE_ENTITIES],
         "climate": [CONF_CLIMATE_TAB_ENABLED, CONF_CLIMATE_ENTITIES],
-        "appearance": [CONF_BACKGROUND, CONF_BACKGROUND_URL, CONF_LAYOUT],
+        "appearance": [
+            CONF_BACKGROUND,
+            CONF_BACKGROUND_FILE,
+            CONF_BACKGROUND_NAME,
+            CONF_BACKGROUND_RESET,
+            CONF_BACKGROUND_TYPE,
+            CONF_BACKGROUND_URL,
+            CONF_BACKGROUND_VERSION,
+            CONF_LAYOUT,
+        ],
     }
 
     async def async_step_init(
@@ -429,7 +461,82 @@ class RokuDashboardOptionsFlow(OptionsFlow):
         return await self._async_section("climate", user_input)
 
     async def async_step_appearance(self, user_input=None) -> ConfigFlowResult:
-        return await self._async_section("appearance", user_input)
+        schema = _section_schemas(dict(self.config_entry.options), self.hass)[
+            "appearance"
+        ]
+        if user_input is None:
+            return self.async_show_form(step_id="appearance", data_schema=schema)
+
+        options = dict(self.config_entry.options)
+        for key in self._SECTION_KEYS["appearance"]:
+            options.pop(key, None)
+
+        file_id = user_input.pop(CONF_BACKGROUND_FILE, None)
+        reset = user_input.pop(CONF_BACKGROUND_RESET, False)
+        if file_id:
+            saved = await self._async_save_background(file_id)
+            if saved is None:
+                return self.async_show_form(
+                    step_id="appearance",
+                    data_schema=schema,
+                    errors={"base": "upload_failed"},
+                )
+            user_input[CONF_BACKGROUND] = "uploaded"
+            user_input[CONF_BACKGROUND_NAME] = saved["name"]
+            user_input[CONF_BACKGROUND_TYPE] = saved["type"]
+            user_input[CONF_BACKGROUND_VERSION] = saved["version"]
+        elif reset:
+            await self._async_delete_background()
+            user_input[CONF_BACKGROUND] = "fall"
+            user_input[CONF_BACKGROUND_FILE] = None
+        else:
+            # Preserve existing upload metadata when only other settings change.
+            for key in (
+                CONF_BACKGROUND_NAME,
+                CONF_BACKGROUND_TYPE,
+                CONF_BACKGROUND_VERSION,
+            ):
+                if key in self.config_entry.options:
+                    user_input[key] = self.config_entry.options[key]
+
+        if not user_input.get(CONF_BACKGROUND_URL):
+            user_input.pop(CONF_BACKGROUND_URL, None)
+        options.update(user_input)
+        return self.async_create_entry(data=options)
+
+    def _background_path(self) -> Path:
+        return Path(self.hass.config.path("roku_dashboard", "background"))
+
+    async def _async_save_background(self, file_id: str) -> dict[str, str] | None:
+        destination = self._background_path()
+
+        def _copy(source: Path) -> None:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, destination)
+
+        try:
+            with process_uploaded_file(self.hass, file_id) as source:
+                name = source.name
+                content_type = (
+                    mimetypes.guess_type(name)[0]
+                    or self.config_entry.options.get(CONF_BACKGROUND_TYPE)
+                    or "image/jpeg"
+                )
+                await self.hass.async_add_executor_job(_copy, source)
+        except Exception:
+            _LOGGER.exception("Unable to save Roku background upload")
+            return None
+        return {
+            "name": name,
+            "type": content_type,
+            "version": secrets.token_hex(6),
+        }
+
+    async def _async_delete_background(self) -> None:
+        path = self._background_path()
+        await self.hass.async_add_executor_job(
+            lambda: path.unlink(missing_ok=True)
+        )
 
     async def async_step_pairing(self, user_input=None) -> ConfigFlowResult:
         if user_input is not None:

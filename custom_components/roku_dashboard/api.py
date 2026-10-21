@@ -5,8 +5,12 @@ from __future__ import annotations
 from calendar import monthrange
 from datetime import date, timedelta
 import logging
+import mimetypes
+from pathlib import Path
 import secrets
 from typing import Any
+
+from aiohttp import web
 
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
@@ -14,7 +18,9 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_BACKGROUND,
+    CONF_BACKGROUND_TYPE,
     CONF_BACKGROUND_URL,
+    CONF_BACKGROUND_VERSION,
     CONF_CALENDAR_ENTITIES,
     CONF_INDOOR_ENTITY,
     CONF_LAYOUT,
@@ -94,6 +100,10 @@ class RokuDashboardView(HomeAssistantView):
                 "month_calendar": month,
                 "background": options.get(CONF_BACKGROUND, "fall"),
                 "background_url": options.get(CONF_BACKGROUND_URL, ""),
+                "background_version": options.get(CONF_BACKGROUND_VERSION, ""),
+                "has_uploaded_background": Path(
+                    self.hass.config.path("roku_dashboard", "background")
+                ).is_file(),
                 "layout": options.get(CONF_LAYOUT, "home"),
                 "weather": weather,
                 "tabs": {
@@ -118,19 +128,7 @@ class RokuDashboardView(HomeAssistantView):
         return self.json(payload)
 
     def _entry_for_code(self, code: str):
-        return next(
-            (
-                item
-                for item in self.hass.config_entries.async_entries(DOMAIN)
-                if secrets.compare_digest(
-                    str(item.data.get(CONF_PAIRING_CODE, "")), code.upper()
-                )
-                or secrets.compare_digest(
-                    str(item.data.get(CONF_DEVICE_TOKEN, "")), code.upper()
-                )
-            ),
-            None,
-        )
+        return entry_for_code(self.hass, code)
 
     @staticmethod
     def _as_list(value: Any) -> list[str]:

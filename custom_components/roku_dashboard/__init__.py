@@ -30,7 +30,7 @@ from .const import (
     STORAGE_VERSION,
 )
 from .services import async_setup_services
-from .api import RokuDashboardView
+from .api import RokuDashboardBackgroundView, RokuDashboardView
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,6 +42,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     hass.data.setdefault(DOMAIN, {})
     async_setup_services(hass)
     hass.http.register_view(RokuDashboardView(hass))
+    hass.http.register_view(RokuDashboardBackgroundView(hass))
     return True
 
 
