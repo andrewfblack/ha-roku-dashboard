@@ -18,12 +18,14 @@ full-day event and weekly meal dialogs, centered condition artwork, and a
 responsive Skylight-inspired schedule. On phones, day columns scroll and snap
 horizontally; larger displays show the configured week together.
 
-Under **Configure → Theme and colors**, visual settings use native color
-pickers with human-readable names for dashboard headers, card headings, body
-and secondary text, accents, fallback background, card backgrounds, selected
-items, focus borders, normal borders, card transparency, and background-image
-darkening. The same payload themes the PWA, Home Assistant panel, and supported
-Roku surfaces.
+Under **Configure → Theme and colors**, visual settings use human-readable
+names for dashboard headers, card headings, body and secondary text, accents,
+fallback background, card backgrounds, selected items, focus borders, normal
+borders, card transparency, and background-image darkening. Colours are entered
+as hex values such as `#1F1711`, which render as plain text fields and behave
+the same on every screen; the Home Assistant panel offers colour pickers for
+the same settings. The same payload themes the PWA, Home Assistant panel, and
+supported Roku surfaces.
 
 - 🍽️ **Creates and owns the meal-planner helper** — an `input_text`
   (`input_text.roku_dashboard_meal_plan`) is created for you, editable from
@@ -82,9 +84,9 @@ Roku surfaces.
 - 🍔 **Home Assistant panel** — optional entry in the Home Assistant
   (hamburger) menu that shows the dashboard and lets you change the dashboard
   configuration without leaving Home Assistant.
-- ↩️ **Settings you can walk back out of** — every section of the configurator
-  has a "back to the options menu" toggle, and saving a section returns to the
-  section list instead of closing the dialog.
+- ↩️ **Settings you can walk back out of** — saving a section keeps the
+  configurator open and returns to the section list, so you can carry on with
+  the next section instead of reopening the dialog every time.
 - 🔒 **Network policy** — LAN-only by default, with explicit LAN + Tailscale
   and external HTTPS modes. Short-code pairing remains local/Tailscale only.
 
@@ -118,11 +120,9 @@ Copy `custom_components/roku_dashboard/` into your HA config directory's
    Pairing/Security. The config sensor and Roku endpoint update immediately
    after each saved section.
 
-   Every section form ends with a **"Go back to the options menu (changes are
-   discarded)"** toggle: turn it on and submit to leave the section without
-   saving. Saving a section keeps the dialog open and returns to the section
-   list, so you can continue with another section (or close the dialog when
-   you are done).
+   Saving a section keeps the dialog open and returns to the section list, so
+   you can carry on with another section (or close the dialog when you are
+   done). Closing the dialog instead leaves the section unsaved.
 
 The Pairing/Security screen displays the current short pairing code and can
 revoke paired Roku credentials. Reset pairing only when you intend to reconnect
@@ -282,7 +282,7 @@ custom_components/roku_dashboard/
   manifest.json          integration metadata (version, dependencies)
   const.py               option keys, presets, defaults
   __init__.py            entry setup, helper creation, value persistence
-  config_flow.py         setup form + options flow (with reload, back button)
+  config_flow.py         setup form + options flow (with reload)
   sensor.py              sensor.roku_dashboard_config
   panel.py               Home Assistant menu panel + panel REST API
   api.py                 client API (data, control commands, live stream)

@@ -30,7 +30,7 @@ from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
 from homeassistant.util import dt as dt_util
 
-from . import pairing
+from . import pairing, theme
 from .const import (
     CONF_ACCESS_MODE,
     CONF_BACKGROUND,
@@ -86,12 +86,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _theme_color(options: dict[str, Any], key: str) -> str:
-    """Return a validated RGB option as a CSS-compatible hex color."""
-    value = options.get(key, THEME_DEFAULTS[key])
-    if not isinstance(value, (list, tuple)) or len(value) != 3:
-        value = THEME_DEFAULTS[key]
-    rgb = [max(0, min(255, int(channel))) for channel in value]
-    return "#" + "".join(f"{channel:02X}" for channel in rgb)
+    """Return a validated theme option as a CSS-compatible hex color."""
+    return theme.to_hex(options.get(key), THEME_DEFAULTS[key])
 
 
 def _theme_data(options: dict[str, Any]) -> dict[str, Any]:

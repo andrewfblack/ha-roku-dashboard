@@ -93,8 +93,19 @@ THEME_DEFAULTS = {
     CONF_THEME_BACKGROUND_OVERLAY: 48,
 }
 
-# Form-only key: the "back to the options menu" toggle in every section form.
-FORM_BACK = "back_to_menu"
+# The theme options that hold a colour.
+THEME_COLOR_KEYS = [
+    CONF_THEME_HEADER_TEXT,
+    CONF_THEME_ITEM_HEADER_TEXT,
+    CONF_THEME_BODY_TEXT,
+    CONF_THEME_MUTED_TEXT,
+    CONF_THEME_ACCENT,
+    CONF_THEME_BACKGROUND,
+    CONF_THEME_ITEM_BACKGROUND,
+    CONF_THEME_SELECTED_BACKGROUND,
+    CONF_THEME_SELECTED_BORDER,
+    CONF_THEME_ITEM_BORDER,
+]
 
 # Home Assistant frontend panel (shown in the hamburger/sidebar menu).
 PANEL_URL_PATH = "family-dashboard-panel"

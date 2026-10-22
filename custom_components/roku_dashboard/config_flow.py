@@ -20,8 +20,6 @@ from homeassistant.config_entries import (
 from homeassistant.core import callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
-    BooleanSelector,
-    ColorRGBSelector,
     EntitySelector,
     EntitySelectorConfig,
     FileSelector,
@@ -29,8 +27,12 @@ from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 
+from . import theme
 from .const import (
     ACCESS_MODES,
     BACKGROUNDS,
@@ -87,10 +89,10 @@ from .const import (
     CONF_THEME_BACKGROUND_OVERLAY,
     CREATE_NEW_MEAL_HELPER,
     DOMAIN,
-    FORM_BACK,
     LAYOUTS,
     FORECAST_TYPES,
     MEAL_HELPER_ENTITY,
+    THEME_COLOR_KEYS,
     THEME_DEFAULTS,
 )
 
@@ -128,15 +130,18 @@ MENU_OPTIONS = [
 ]
 
 
-def _back_field() -> dict[Any, Any]:
-    """The "back to the options menu" toggle added to every section form."""
-    return {vol.Optional(FORM_BACK, default=False): BooleanSelector()}
+def _theme_hex(value: Any, fallback: list[int]) -> str:
+    """Return a theme colour as a hex string, whatever shape it is stored in.
+
+    Colours are stored either as a hex string or as an RGB list, so both are
+    accepted here and the form always shows the same value.
+    """
+    return theme.to_hex(value, fallback)
 
 
-def _section_schema(fields: dict[Any, Any]) -> vol.Schema:
-    """Build a section schema that can be left again without saving."""
-    fields.update(_back_field())
-    return vol.Schema(fields)
+def _valid_theme_color(value: Any) -> bool:
+    """Return True when a colour is a hex string such as #1F1711."""
+    return theme.is_hex(value)
 
 
 def _meal_entity_options(hass) -> list[dict[str, str]]:
@@ -359,7 +364,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
         )
     )
     return {
-        "access": _section_schema(
+        "access": vol.Schema(
             {
                 vol.Required(
                     CONF_ACCESS_MODE,
@@ -367,7 +372,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): access_mode,
             }
         ),
-        "home": _section_schema(
+        "home": vol.Schema(
             {
                 vol.Required(
                     CONF_INDOOR_ENTITY,
@@ -381,7 +386,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ),
             }
         ),
-        "meals": _section_schema(
+        "meals": vol.Schema(
             {
                 vol.Required(
                     CONF_MEAL_ENTITY,
@@ -396,7 +401,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 vol.Optional(CONF_MEAL_SUNDAY, default=defaults.get(CONF_MEAL_SUNDAY, "")): vol.Coerce(str),
             }
         ),
-        "calendar": _section_schema(
+        "calendar": vol.Schema(
             {
                 vol.Required(
                     CONF_CALENDAR_TAB_ENABLED,
@@ -424,7 +429,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): bool,
             }
         ),
-        "weather": _section_schema(
+        "weather": vol.Schema(
             {
                 vol.Required(
                     CONF_WEATHER_TAB_ENABLED,
@@ -444,7 +449,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): vol.All(vol.Coerce(int), vol.Range(min=3, max=8)),
             }
         ),
-        "lights": _section_schema(
+        "lights": vol.Schema(
             {
                 vol.Required(
                     CONF_LIGHTS_TAB_ENABLED,
@@ -456,7 +461,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): lights,
             }
         ),
-        "scenes": _section_schema(
+        "scenes": vol.Schema(
             {
                 vol.Required(
                     CONF_SCENES_TAB_ENABLED,
@@ -468,7 +473,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): scenes,
             }
         ),
-        "climate": _section_schema(
+        "climate": vol.Schema(
             {
                 vol.Required(
                     CONF_CLIMATE_TAB_ENABLED,
@@ -480,7 +485,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): climates,
             }
         ),
-        "panel": _section_schema(
+        "panel": vol.Schema(
             {
                 vol.Required(
                     CONF_PANEL_ENABLED,
@@ -488,48 +493,78 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): bool,
             }
         ),
-        "theme": _section_schema(
+        "theme": vol.Schema(
             {
                 vol.Required(
                     CONF_THEME_HEADER_TEXT,
-                    default=defaults.get(CONF_THEME_HEADER_TEXT, THEME_DEFAULTS[CONF_THEME_HEADER_TEXT]),
-                ): ColorRGBSelector(),
+                    default=_theme_hex(
+                        defaults.get(CONF_THEME_HEADER_TEXT),
+                        THEME_DEFAULTS[CONF_THEME_HEADER_TEXT],
+                    ),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
                 vol.Required(
                     CONF_THEME_ITEM_HEADER_TEXT,
-                    default=defaults.get(CONF_THEME_ITEM_HEADER_TEXT, THEME_DEFAULTS[CONF_THEME_ITEM_HEADER_TEXT]),
-                ): ColorRGBSelector(),
+                    default=_theme_hex(
+                        defaults.get(CONF_THEME_ITEM_HEADER_TEXT),
+                        THEME_DEFAULTS[CONF_THEME_ITEM_HEADER_TEXT],
+                    ),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
                 vol.Required(
                     CONF_THEME_BODY_TEXT,
-                    default=defaults.get(CONF_THEME_BODY_TEXT, THEME_DEFAULTS[CONF_THEME_BODY_TEXT]),
-                ): ColorRGBSelector(),
+                    default=_theme_hex(
+                        defaults.get(CONF_THEME_BODY_TEXT),
+                        THEME_DEFAULTS[CONF_THEME_BODY_TEXT],
+                    ),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
                 vol.Required(
                     CONF_THEME_MUTED_TEXT,
-                    default=defaults.get(CONF_THEME_MUTED_TEXT, THEME_DEFAULTS[CONF_THEME_MUTED_TEXT]),
-                ): ColorRGBSelector(),
+                    default=_theme_hex(
+                        defaults.get(CONF_THEME_MUTED_TEXT),
+                        THEME_DEFAULTS[CONF_THEME_MUTED_TEXT],
+                    ),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
                 vol.Required(
                     CONF_THEME_ACCENT,
-                    default=defaults.get(CONF_THEME_ACCENT, THEME_DEFAULTS[CONF_THEME_ACCENT]),
-                ): ColorRGBSelector(),
+                    default=_theme_hex(
+                        defaults.get(CONF_THEME_ACCENT),
+                        THEME_DEFAULTS[CONF_THEME_ACCENT],
+                    ),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
                 vol.Required(
                     CONF_THEME_BACKGROUND,
-                    default=defaults.get(CONF_THEME_BACKGROUND, THEME_DEFAULTS[CONF_THEME_BACKGROUND]),
-                ): ColorRGBSelector(),
+                    default=_theme_hex(
+                        defaults.get(CONF_THEME_BACKGROUND),
+                        THEME_DEFAULTS[CONF_THEME_BACKGROUND],
+                    ),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
                 vol.Required(
                     CONF_THEME_ITEM_BACKGROUND,
-                    default=defaults.get(CONF_THEME_ITEM_BACKGROUND, THEME_DEFAULTS[CONF_THEME_ITEM_BACKGROUND]),
-                ): ColorRGBSelector(),
+                    default=_theme_hex(
+                        defaults.get(CONF_THEME_ITEM_BACKGROUND),
+                        THEME_DEFAULTS[CONF_THEME_ITEM_BACKGROUND],
+                    ),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
                 vol.Required(
                     CONF_THEME_SELECTED_BACKGROUND,
-                    default=defaults.get(CONF_THEME_SELECTED_BACKGROUND, THEME_DEFAULTS[CONF_THEME_SELECTED_BACKGROUND]),
-                ): ColorRGBSelector(),
+                    default=_theme_hex(
+                        defaults.get(CONF_THEME_SELECTED_BACKGROUND),
+                        THEME_DEFAULTS[CONF_THEME_SELECTED_BACKGROUND],
+                    ),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
                 vol.Required(
                     CONF_THEME_SELECTED_BORDER,
-                    default=defaults.get(CONF_THEME_SELECTED_BORDER, THEME_DEFAULTS[CONF_THEME_SELECTED_BORDER]),
-                ): ColorRGBSelector(),
+                    default=_theme_hex(
+                        defaults.get(CONF_THEME_SELECTED_BORDER),
+                        THEME_DEFAULTS[CONF_THEME_SELECTED_BORDER],
+                    ),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
                 vol.Required(
                     CONF_THEME_ITEM_BORDER,
-                    default=defaults.get(CONF_THEME_ITEM_BORDER, THEME_DEFAULTS[CONF_THEME_ITEM_BORDER]),
-                ): ColorRGBSelector(),
+                    default=_theme_hex(
+                        defaults.get(CONF_THEME_ITEM_BORDER),
+                        THEME_DEFAULTS[CONF_THEME_ITEM_BORDER],
+                    ),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
                 vol.Required(
                     CONF_THEME_ITEM_OPACITY,
                     default=defaults.get(CONF_THEME_ITEM_OPACITY, THEME_DEFAULTS[CONF_THEME_ITEM_OPACITY]),
@@ -540,7 +575,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
             }
         ),
-        "appearance": _section_schema(
+        "appearance": vol.Schema(
             {
                 vol.Required(
                     CONF_DASHBOARD_TITLE,
@@ -680,10 +715,6 @@ class RokuDashboardOptionsFlow(OptionsFlow):
         self, step_id: str, user_input: dict[str, Any] | None
     ) -> ConfigFlowResult:
         if user_input is not None:
-            if user_input.pop(FORM_BACK, False):
-                return self._async_menu(
-                    f"No changes were saved to the {SECTION_LABELS[step_id]}."
-                )
             options = dict(self.config_entry.options)
             for key in self._SECTION_KEYS[step_id]:
                 options.pop(key, None)
@@ -691,6 +722,24 @@ class RokuDashboardOptionsFlow(OptionsFlow):
                 user_input[CONF_MEAL_ENTITY] = MEAL_HELPER_ENTITY
             if not user_input.get(CONF_BACKGROUND_URL):
                 user_input.pop(CONF_BACKGROUND_URL, None)
+            if step_id == "theme":
+                errors = {
+                    key: "invalid_color"
+                    for key in THEME_COLOR_KEYS
+                    if not _valid_theme_color(user_input.get(key))
+                }
+                if errors:
+                    return self.async_show_form(
+                        step_id=step_id,
+                        data_schema=_section_schemas(
+                            dict(self.config_entry.options), self.hass
+                        )[step_id],
+                        errors=errors,
+                    )
+                for key in THEME_COLOR_KEYS:
+                    user_input[key] = _theme_hex(
+                        user_input[key], THEME_DEFAULTS[key]
+                    )
             options.update(user_input)
             self.hass.config_entries.async_update_entry(
                 self.config_entry, options=options
@@ -737,11 +786,6 @@ class RokuDashboardOptionsFlow(OptionsFlow):
         ]
         if user_input is None:
             return self.async_show_form(step_id="appearance", data_schema=schema)
-
-        if user_input.pop(FORM_BACK, False):
-            return self._async_menu(
-                f"No changes were saved to the {SECTION_LABELS['appearance']}."
-            )
 
         options = dict(self.config_entry.options)
         for key in self._SECTION_KEYS["appearance"]:
@@ -821,10 +865,6 @@ class RokuDashboardOptionsFlow(OptionsFlow):
 
     async def async_step_pairing(self, user_input=None) -> ConfigFlowResult:
         if user_input is not None:
-            if user_input.pop(FORM_BACK, False):
-                return self._async_menu(
-                    f"No changes were saved to the {SECTION_LABELS['pairing']}."
-                )
             if user_input.get("reset_pairing", False):
                 data = dict(self.config_entry.data)
                 data[CONF_PAIRING_CODE] = secrets.token_hex(4).upper()
@@ -840,12 +880,7 @@ class RokuDashboardOptionsFlow(OptionsFlow):
             )
         return self.async_show_form(
             step_id="pairing",
-            data_schema=vol.Schema(
-                {
-                    vol.Required("reset_pairing", default=False): bool,
-                    **_back_field(),
-                }
-            ),
+            data_schema=vol.Schema({vol.Required("reset_pairing", default=False): bool}),
             description_placeholders={
                 "pairing_code": self.config_entry.data.get(CONF_PAIRING_CODE, "")
             },

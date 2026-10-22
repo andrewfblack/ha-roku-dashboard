@@ -20,7 +20,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .api import async_dashboard_payload, async_execute_action
-from . import pairing
+from . import pairing, theme
 from .const import (
     BACKGROUNDS,
     CONF_BACKGROUND,
@@ -125,28 +125,13 @@ def _clean_entities(
 
 
 def _rgb_hex(value: Any, fallback: list[int]) -> str:
-    """Return an RGB list as #RRGGBB."""
-    if not isinstance(value, (list, tuple)) or len(value) != 3:
-        value = fallback
-    rgb = [max(0, min(255, int(channel))) for channel in value]
-    return "#" + "".join(f"{channel:02X}" for channel in rgb)
+    """Return a theme colour as #RRGGBB."""
+    return theme.to_hex(value, fallback)
 
 
 def _clean_rgb(value: Any, fallback: list[int]) -> list[int]:
     """Accept a panel hex color or an HA RGB selector value."""
-    if isinstance(value, str):
-        text = value.strip().lstrip("#")
-        if len(text) == 6:
-            try:
-                return [int(text[index:index + 2], 16) for index in (0, 2, 4)]
-            except ValueError:
-                pass
-    if isinstance(value, (list, tuple)) and len(value) == 3:
-        try:
-            return [max(0, min(255, int(channel))) for channel in value]
-        except (TypeError, ValueError):
-            pass
-    return list(fallback)
+    return theme.to_rgb(value, fallback)
 
 
 def _public_options(options: dict[str, Any]) -> dict[str, Any]:
