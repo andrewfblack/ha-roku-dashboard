@@ -52,6 +52,7 @@ from .const import (
     CONF_LAYOUT,
     CONF_MEAL_ENTITY,
     CONF_OUTDOOR_ENTITY,
+    CONF_SECONDARY_WEATHER_ENTITY,
     CONF_PANEL_ENABLED,
     CONF_WEATHER_TAB_ENABLED,
     CONF_FORECAST_TYPE,
@@ -175,7 +176,7 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
     calendars = EntitySelector(
         EntitySelectorConfig(domain=["calendar"], multiple=True)
     )
-    lights = EntitySelector(EntitySelectorConfig(domain=["light"], multiple=True))
+    lights = EntitySelector(EntitySelectorConfig(domain=["light", "switch"], multiple=True))
     scenes = EntitySelector(
         EntitySelectorConfig(domain=["scene", "script"], multiple=True)
     )
@@ -229,6 +230,10 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
         vol.Optional(
             CONF_OUTDOOR_ENTITY,
             default=defaults.get(CONF_OUTDOOR_ENTITY, vol.UNDEFINED),
+        ): outdoor,
+        vol.Optional(
+            CONF_SECONDARY_WEATHER_ENTITY,
+            default=defaults.get(CONF_SECONDARY_WEATHER_ENTITY, vol.UNDEFINED),
         ): outdoor,
         vol.Required(
             CONF_WEATHER_TAB_ENABLED,
@@ -327,7 +332,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
     calendars = EntitySelector(
         EntitySelectorConfig(domain=["calendar"], multiple=True)
     )
-    lights = EntitySelector(EntitySelectorConfig(domain=["light"], multiple=True))
+    lights = EntitySelector(EntitySelectorConfig(domain=["light", "switch"], multiple=True))
     scenes = EntitySelector(
         EntitySelectorConfig(domain=["scene", "script"], multiple=True)
     )
@@ -438,6 +443,10 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                 vol.Optional(
                     CONF_OUTDOOR_ENTITY,
                     default=defaults.get(CONF_OUTDOOR_ENTITY, vol.UNDEFINED),
+                ): outdoor,
+                vol.Optional(
+                    CONF_SECONDARY_WEATHER_ENTITY,
+                    default=defaults.get(CONF_SECONDARY_WEATHER_ENTITY, vol.UNDEFINED),
                 ): outdoor,
                 vol.Required(
                     CONF_FORECAST_TYPE,

@@ -29,6 +29,7 @@ PAYLOAD_SCHEMA_VERSION = 2
 
 CONF_INDOOR_ENTITY = "indoor_entity"
 CONF_OUTDOOR_ENTITY = "outdoor_entity"
+CONF_SECONDARY_WEATHER_ENTITY = "secondary_weather_entity"
 CONF_MEAL_ENTITY = "meal_entity"
 CONF_BACKGROUND = "background"
 CONF_LAYOUT = "layout"

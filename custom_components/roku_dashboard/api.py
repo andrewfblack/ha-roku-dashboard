@@ -48,6 +48,7 @@ from .const import (
     CONF_MEAL_ENTITY,
     MEAL_DAY_KEYS,
     CONF_OUTDOOR_ENTITY,
+    CONF_SECONDARY_WEATHER_ENTITY,
     CONF_PAIRING_CODE,
     CONF_DEVICE_TOKEN,
     CONF_WEATHER_TAB_ENABLED,
@@ -591,6 +592,7 @@ async def setup_state_stream(hass, entry) -> None:
             "state",
             {
                 "entity_id": entity_id,
+                "domain": entity_id.split(".", 1)[0],
                 "state": new_state.state if new_state else "unavailable",
                 "attributes": dict(new_state.attributes) if new_state else {},
             },
@@ -994,6 +996,7 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
     indoor = options.get(CONF_INDOOR_ENTITY, "")
     indoor_humidity = options.get(CONF_INDOOR_HUMIDITY_ENTITY, "")
     outdoor = options.get(CONF_OUTDOOR_ENTITY, "")
+    secondary_weather = options.get(CONF_SECONDARY_WEATHER_ENTITY, "")
     meal = options.get(CONF_MEAL_ENTITY, "")
     calendars = options.get(CONF_CALENDAR_ENTITIES, [])
     if isinstance(calendars, str):
@@ -1019,6 +1022,9 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
         options.get(CONF_CALENDAR_EVENTS_PER_DAY, 5),
     )
     weather = await _weather_data(hass, outdoor, options)
+    secondary_weather_data = {}
+    if secondary_weather and options.get(CONF_FORECAST_COUNT, 5) <= 5:
+        secondary_weather_data = await _weather_data(hass, secondary_weather, options)
     lights = _entity_cards(hass, options.get(CONF_LIGHT_ENTITIES, []))
     scenes = _entity_cards(hass, options.get(CONF_SCENE_ENTITIES, []))
     climates = _climate_cards(hass, options.get(CONF_CLIMATE_ENTITIES, []))
@@ -1063,6 +1069,7 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
         "has_uploaded_background": bool(options.get(CONF_BACKGROUND_VERSION)),
         "layout": options.get(CONF_LAYOUT, "home"),
         "weather": weather,
+        "secondary_weather": secondary_weather_data,
         "tabs": {
             "calendar": options.get(CONF_CALENDAR_TAB_ENABLED, True),
             "weather": options.get(CONF_WEATHER_TAB_ENABLED, True),
@@ -1100,7 +1107,10 @@ async def async_execute_action(
     service = ""
     data: dict[str, Any] = {"entity_id": entity_id}
     if action == "light_toggle" and entity_id in lights:
-        domain, service = "light", "toggle"
+        domain = entity_id.split(".", 1)[0]
+        if domain not in ("light", "switch"):
+            return {"error": "not_allowed"}, 403
+        service = "toggle"
     elif action == "light_brightness" and entity_id in lights:
         domain, service = "light", "turn_on"
         data["brightness_pct"] = max(1, min(100, int(body.get("value", 100))))

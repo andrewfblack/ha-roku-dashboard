@@ -7,6 +7,7 @@
         "data": {
           "indoor_entity": "Indoor temperature entity",
           "outdoor_entity": "Outdoor weather entity (optional)",
+          "secondary_weather_entity": "Second weather location (optional)",
           "weather_tab_enabled": "Enable Weather tab",
           "forecast_type": "Weather forecast type",
           "forecast_count": "Number of forecast periods (3-8)",
@@ -41,6 +42,7 @@
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
           "outdoor_entity": "Weather entity used for the outside conditions card. Auto-detected if left empty.",
+          "secondary_weather_entity": "Optional second weather entity shown on the Weather tab when using five or fewer forecast periods.",
           "weather_tab_enabled": "Adds a dedicated Weather tab to the Roku dashboard.",
           "forecast_type": "Show a daily or hourly forecast.",
           "forecast_count": "How many forecast cards the Roku should display.",
@@ -70,6 +72,7 @@
         "data": {
           "indoor_entity": "Indoor temperature entity",
           "outdoor_entity": "Outdoor weather entity (optional)",
+          "secondary_weather_entity": "Second weather location (optional)",
           "weather_tab_enabled": "Enable Weather tab",
           "forecast_type": "Weather forecast type",
           "forecast_count": "Number of forecast periods (3-8)",
@@ -103,6 +106,7 @@
         "data_description": {
           "indoor_entity": "Sensor or climate entity used for the inside temperature card.",
           "outdoor_entity": "Weather entity used for the outside conditions card. Auto-detected if left empty.",
+          "secondary_weather_entity": "Optional second weather entity shown on the Weather tab when using five or fewer forecast periods.",
           "weather_tab_enabled": "Adds a dedicated Weather tab to the Roku dashboard.",
           "forecast_type": "Show a daily or hourly forecast.",
           "forecast_count": "How many forecast cards the Roku should display.",
@@ -216,12 +220,14 @@
         "data": {
           "weather_tab_enabled": "Enable Weather tab",
           "outdoor_entity": "Outdoor weather entity (optional)",
+          "secondary_weather_entity": "Second weather location (optional)",
           "forecast_type": "Weather forecast type",
           "forecast_count": "Number of forecast periods (3-8)"
         },
         "data_description": {
           "weather_tab_enabled": "Adds a dedicated Weather tab to the Roku dashboard.",
           "outdoor_entity": "Weather entity used for the outside conditions card. Auto-detected if left empty.",
+          "secondary_weather_entity": "Optional second weather entity shown on the Weather tab when using five or fewer forecast periods.",
           "forecast_type": "Show a daily or hourly forecast.",
           "forecast_count": "How many forecast cards the Roku should display."
         }
