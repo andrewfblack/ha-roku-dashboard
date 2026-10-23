@@ -30,12 +30,12 @@ from .const import (
     CONF_CALENDAR_TAB_ENABLED,
     CONF_CLIMATE_ENTITIES,
     CONF_CLIMATE_TAB_ENABLED,
-    CONF_DASHBOARD_TITLE,
     CONF_DEVICE_TOKEN,
+    CONF_DASHBOARD_TITLE,
     CONF_INDOOR_ENTITY,
     CONF_INDOOR_HUMIDITY_ENTITY,
-    CONF_LEGACY_TOKEN_REVOKED,
     CONF_LAYOUT,
+    CONF_LEGACY_TOKEN_REVOKED,
     CONF_LIGHT_ENTITIES,
     CONF_LIGHTS_TAB_ENABLED,
     CONF_MEAL_ENTITY,
@@ -400,7 +400,6 @@ class FamilyDashboardPanelPairingView(HomeAssistantView):
                     pairing.public_record(record)
                     for record in pairing.list_devices(self.hass)
                 ],
-                "legacy_token": self._legacy_device(),
             }
         )
 
@@ -432,29 +431,13 @@ class FamilyDashboardPanelPairingView(HomeAssistantView):
             return await self._revoke_legacy()
         return self.json({"error": "invalid_action"}, status_code=400)
 
-    def _legacy_device(self) -> dict[str, Any] | None:
-        """Return the shared credential used before per-device tokens."""
-        entry = _config_entry(self.hass)
-        if entry is None or not entry.data.get(CONF_DEVICE_TOKEN):
-            return None
-        return {
-            "device_id": "legacy",
-            "name": "Legacy shared token",
-            "platform": "legacy",
-            "created": "",
-            "last_seen": "",
-            "legacy": True,
-        }
-
     async def _revoke_legacy(self):
-        """Clear the shared credential used before per-device tokens."""
+        """Clear a legacy shared credential without offering new code pairing."""
         entry = _config_entry(self.hass)
         if entry is None:
             return self.json({"error": "not_configured"}, status_code=404)
         data = dict(entry.data)
         data[CONF_DEVICE_TOKEN] = ""
-        # Remember the revocation, otherwise the next reload would hand out a
-        # fresh shared token and the revoke would look like it did nothing.
         data[CONF_LEGACY_TOKEN_REVOKED] = True
         self.hass.config_entries.async_update_entry(entry, data=data)
         return self.json({"ok": True})

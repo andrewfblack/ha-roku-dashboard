@@ -68,8 +68,6 @@ from .const import (
     CONF_SECURITY_LOCK_ENTITIES,
     CONF_SECURITY_ALARM_ENTITY,
     CONF_SECURITY_FAMILY_ENTITIES,
-    CONF_PAIRING_CODE,
-    CONF_DEVICE_TOKEN,
     CONF_DASHBOARD_TITLE,
     CONF_INDOOR_HUMIDITY_ENTITY,
     CONF_MEAL_MONDAY,
@@ -118,7 +116,6 @@ SECTION_LABELS = {
     "appearance": "Appearance",
     "theme": "Theme and colors",
     "panel": "Home Assistant menu",
-    "pairing": "Pairing and security",
 }
 
 MENU_OPTIONS = [
@@ -134,7 +131,6 @@ MENU_OPTIONS = [
     "appearance",
     "theme",
     "panel",
-    "pairing",
 ]
 
 
@@ -849,6 +845,9 @@ class RokuDashboardOptionsFlow(OptionsFlow):
     async def async_step_climate(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("climate", user_input)
 
+    async def async_step_security(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_section("security", user_input)
+
     async def async_step_panel(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("panel", user_input)
 
@@ -936,27 +935,4 @@ class RokuDashboardOptionsFlow(OptionsFlow):
         path = self._background_path()
         await self.hass.async_add_executor_job(
             lambda: path.unlink(missing_ok=True)
-        )
-
-    async def async_step_pairing(self, user_input=None) -> ConfigFlowResult:
-        if user_input is not None:
-            if user_input.get("reset_pairing", False):
-                data = dict(self.config_entry.data)
-                data[CONF_PAIRING_CODE] = secrets.token_hex(4).upper()
-                data[CONF_DEVICE_TOKEN] = secrets.token_hex(32).upper()
-                self.hass.config_entries.async_update_entry(
-                    self.config_entry, data=data
-                )
-                return self._async_menu(
-                    "Pairing was reset. Use the new pairing code on your device."
-                )
-            return self._async_menu(
-                f"Saved the {SECTION_LABELS['pairing']} settings."
-            )
-        return self.async_show_form(
-            step_id="pairing",
-            data_schema=vol.Schema({vol.Required("reset_pairing", default=False): bool}),
-            description_placeholders={
-                "pairing_code": self.config_entry.data.get(CONF_PAIRING_CODE, "")
-            },
         )

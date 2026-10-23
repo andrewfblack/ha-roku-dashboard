@@ -10,7 +10,6 @@ Bridges your Roku HA Dashboard channel to Home Assistant:
 from __future__ import annotations
 
 import logging
-import secrets
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -22,9 +21,6 @@ from homeassistant.helpers.storage import Store
 from .const import (
     CONF_MEAL_ENTITY,
     CONF_PANEL_ENABLED,
-    CONF_PAIRING_CODE,
-    CONF_DEVICE_TOKEN,
-    CONF_LEGACY_TOKEN_REVOKED,
     DOMAIN,
     MEAL_HELPER_ENTITY,
     MEAL_HELPER_KEY,
@@ -37,14 +33,10 @@ from .api import (
     FamilyDashboardActionView,
     FamilyDashboardBackgroundView,
     FamilyDashboardDataView,
-    FamilyDashboardPairingCodeView,
     FamilyDashboardPairingRequestView,
     FamilyDashboardPairingStatusView,
     FamilyDashboardStreamView,
     FamilyDashboardTokenDataView,
-    RokuDashboardActionView,
-    RokuDashboardBackgroundView,
-    RokuDashboardView,
     setup_state_stream,
     stream_hub,
 )
@@ -74,14 +66,10 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     # "device", "stream" and "pairing" are never read as a credential.
     hass.http.register_view(FamilyDashboardPairingRequestView(hass))
     hass.http.register_view(FamilyDashboardPairingStatusView(hass))
-    hass.http.register_view(FamilyDashboardPairingCodeView(hass))
     hass.http.register_view(FamilyDashboardStreamView(hass))
     hass.http.register_view(FamilyDashboardDataView(hass))
     hass.http.register_view(FamilyDashboardActionView(hass))
     hass.http.register_view(FamilyDashboardBackgroundView(hass))
-    hass.http.register_view(RokuDashboardView(hass))
-    hass.http.register_view(RokuDashboardActionView(hass))
-    hass.http.register_view(RokuDashboardBackgroundView(hass))
     hass.http.register_view(FamilyDashboardWebView)
     hass.http.register_view(FamilyDashboardAssetView)
     hass.http.register_view(FamilyDashboardPanelView(hass))
@@ -101,17 +89,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Update existing entries created before the visible integration rename.
     if entry.title != "Family Dashboard":
         hass.config_entries.async_update_entry(entry, title="Family Dashboard")
-
-    if not entry.data.get(CONF_PAIRING_CODE):
-        data = dict(entry.data)
-        data[CONF_PAIRING_CODE] = secrets.token_hex(4).upper()
-        hass.config_entries.async_update_entry(entry, data=data)
-    if not entry.data.get(CONF_DEVICE_TOKEN) and not entry.data.get(
-        CONF_LEGACY_TOKEN_REVOKED
-    ):
-        data = dict(entry.data)
-        data[CONF_DEVICE_TOKEN] = secrets.token_hex(32).upper()
-        hass.config_entries.async_update_entry(entry, data=data)
 
     store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
     stored_value: str = (await store.async_load()) or ""
