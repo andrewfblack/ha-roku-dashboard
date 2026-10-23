@@ -63,6 +63,11 @@ from .const import (
     CONF_SCENE_ENTITIES,
     CONF_CLIMATE_TAB_ENABLED,
     CONF_CLIMATE_ENTITIES,
+    CONF_SECURITY_TAB_ENABLED,
+    CONF_SECURITY_COVER_ENTITIES,
+    CONF_SECURITY_LOCK_ENTITIES,
+    CONF_SECURITY_ALARM_ENTITY,
+    CONF_SECURITY_FAMILY_ENTITIES,
     CONF_PAIRING_CODE,
     CONF_DEVICE_TOKEN,
     CONF_DASHBOARD_TITLE,
@@ -109,6 +114,7 @@ SECTION_LABELS = {
     "lights": "Lights tab",
     "scenes": "Scenes and scripts",
     "climate": "Climate tab",
+    "security": "Security tab",
     "appearance": "Appearance",
     "theme": "Theme and colors",
     "panel": "Home Assistant menu",
@@ -124,6 +130,7 @@ MENU_OPTIONS = [
     "lights",
     "scenes",
     "climate",
+    "security",
     "appearance",
     "theme",
     "panel",
@@ -183,6 +190,10 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
     climates = EntitySelector(
         EntitySelectorConfig(domain=["climate"], multiple=True)
     )
+    security_covers = EntitySelector(EntitySelectorConfig(domain=["cover"], multiple=True))
+    security_locks = EntitySelector(EntitySelectorConfig(domain=["lock"], multiple=True))
+    security_alarm = EntitySelector(EntitySelectorConfig(domain=["alarm_control_panel"], multiple=False))
+    security_family = EntitySelector(EntitySelectorConfig(domain=["person"], multiple=True))
     meal = SelectSelector(
         SelectSelectorConfig(
             options=_meal_entity_options(hass),
@@ -271,6 +282,26 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
             CONF_CLIMATE_ENTITIES,
             default=defaults.get(CONF_CLIMATE_ENTITIES, vol.UNDEFINED),
         ): climates,
+        vol.Required(
+            CONF_SECURITY_TAB_ENABLED,
+            default=defaults.get(CONF_SECURITY_TAB_ENABLED, True),
+        ): bool,
+        vol.Optional(
+            CONF_SECURITY_COVER_ENTITIES,
+            default=defaults.get(CONF_SECURITY_COVER_ENTITIES, vol.UNDEFINED),
+        ): security_covers,
+        vol.Optional(
+            CONF_SECURITY_LOCK_ENTITIES,
+            default=defaults.get(CONF_SECURITY_LOCK_ENTITIES, vol.UNDEFINED),
+        ): security_locks,
+        vol.Optional(
+            CONF_SECURITY_ALARM_ENTITY,
+            default=defaults.get(CONF_SECURITY_ALARM_ENTITY, vol.UNDEFINED),
+        ): security_alarm,
+        vol.Optional(
+            CONF_SECURITY_FAMILY_ENTITIES,
+            default=defaults.get(CONF_SECURITY_FAMILY_ENTITIES, vol.UNDEFINED),
+        ): security_family,
         vol.Optional(
             CONF_CALENDAR_ENTITIES,
             default=defaults.get(CONF_CALENDAR_ENTITIES, vol.UNDEFINED),
@@ -339,6 +370,10 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
     climates = EntitySelector(
         EntitySelectorConfig(domain=["climate"], multiple=True)
     )
+    security_covers = EntitySelector(EntitySelectorConfig(domain=["cover"], multiple=True))
+    security_locks = EntitySelector(EntitySelectorConfig(domain=["lock"], multiple=True))
+    security_alarm = EntitySelector(EntitySelectorConfig(domain=["alarm_control_panel"], multiple=False))
+    security_family = EntitySelector(EntitySelectorConfig(domain=["person"], multiple=True))
     meal = SelectSelector(
         SelectSelectorConfig(
             options=_meal_entity_options(hass), mode=SelectSelectorMode.DROPDOWN
@@ -480,6 +515,30 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                     CONF_SCENE_ENTITIES,
                     default=defaults.get(CONF_SCENE_ENTITIES, vol.UNDEFINED),
                 ): scenes,
+            }
+        ),
+        "security": vol.Schema(
+            {
+                vol.Required(
+                    CONF_SECURITY_TAB_ENABLED,
+                    default=defaults.get(CONF_SECURITY_TAB_ENABLED, True),
+                ): bool,
+                vol.Optional(
+                    CONF_SECURITY_COVER_ENTITIES,
+                    default=defaults.get(CONF_SECURITY_COVER_ENTITIES, vol.UNDEFINED),
+                ): security_covers,
+                vol.Optional(
+                    CONF_SECURITY_LOCK_ENTITIES,
+                    default=defaults.get(CONF_SECURITY_LOCK_ENTITIES, vol.UNDEFINED),
+                ): security_locks,
+                vol.Optional(
+                    CONF_SECURITY_ALARM_ENTITY,
+                    default=defaults.get(CONF_SECURITY_ALARM_ENTITY, vol.UNDEFINED),
+                ): security_alarm,
+                vol.Optional(
+                    CONF_SECURITY_FAMILY_ENTITIES,
+                    default=defaults.get(CONF_SECURITY_FAMILY_ENTITIES, vol.UNDEFINED),
+                ): security_family,
             }
         ),
         "climate": vol.Schema(
@@ -678,6 +737,13 @@ class RokuDashboardOptionsFlow(OptionsFlow):
         "lights": [CONF_LIGHTS_TAB_ENABLED, CONF_LIGHT_ENTITIES],
         "scenes": [CONF_SCENES_TAB_ENABLED, CONF_SCENE_ENTITIES],
         "climate": [CONF_CLIMATE_TAB_ENABLED, CONF_CLIMATE_ENTITIES],
+        "security": [
+            CONF_SECURITY_TAB_ENABLED,
+            CONF_SECURITY_COVER_ENTITIES,
+            CONF_SECURITY_LOCK_ENTITIES,
+            CONF_SECURITY_ALARM_ENTITY,
+            CONF_SECURITY_FAMILY_ENTITIES,
+        ],
         "panel": [CONF_PANEL_ENABLED],
         "theme": [
             CONF_THEME_HEADER_TEXT,

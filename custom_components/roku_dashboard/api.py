@@ -60,6 +60,11 @@ from .const import (
     CONF_SCENE_ENTITIES,
     CONF_CLIMATE_TAB_ENABLED,
     CONF_CLIMATE_ENTITIES,
+    CONF_SECURITY_TAB_ENABLED,
+    CONF_SECURITY_COVER_ENTITIES,
+    CONF_SECURITY_LOCK_ENTITIES,
+    CONF_SECURITY_ALARM_ENTITY,
+    CONF_SECURITY_FAMILY_ENTITIES,
     CONF_US_HOLIDAYS_ENABLED,
     CONF_US_OBSERVANCES_ENABLED,
     CONF_THEME_HEADER_TEXT,
@@ -665,6 +670,52 @@ def _entity_cards(hass, configured: Any) -> list[dict[str, Any]]:
     return cards
 
 
+def _security_data(hass, options: dict[str, Any]) -> dict[str, Any]:
+    """Build the allowlisted security controls and family presence list."""
+    def cards(configured: Any, limit: int) -> list[dict[str, Any]]:
+        result = []
+        for entity_id in _as_list(configured)[:limit]:
+            state = hass.states.get(entity_id)
+            if state is None:
+                continue
+            result.append({
+                "entity_id": entity_id,
+                "name": state.attributes.get("friendly_name", entity_id),
+                "state": state.state,
+            })
+        return result
+
+    family = []
+    for entity_id in _as_list(options.get(CONF_SECURITY_FAMILY_ENTITIES, [])):
+        state = hass.states.get(entity_id)
+        if state is None:
+            continue
+        family.append({
+            "entity_id": entity_id,
+            "name": state.attributes.get("friendly_name", entity_id),
+            "state": state.state,
+            "home": state.state == "home",
+        })
+
+    alarm_id = options.get(CONF_SECURITY_ALARM_ENTITY, "")
+    alarm = None
+    if alarm_id:
+        state = hass.states.get(alarm_id)
+        if state is not None:
+            alarm = {
+                "entity_id": alarm_id,
+                "name": state.attributes.get("friendly_name", alarm_id),
+                "state": state.state,
+                "states": state.attributes.get("code_arm_required", False),
+            }
+    return {
+        "garage_doors": cards(options.get(CONF_SECURITY_COVER_ENTITIES, []), 2),
+        "locks": cards(options.get(CONF_SECURITY_LOCK_ENTITIES, []), 4),
+        "alarm": alarm,
+        "family": family,
+    }
+
+
 def _climate_cards(hass, configured: Any) -> list[dict[str, Any]]:
     """Build thermostat cards for the configured climate entities."""
     cards: list[dict[str, Any]] = []
@@ -1028,6 +1079,7 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
     lights = _entity_cards(hass, options.get(CONF_LIGHT_ENTITIES, []))
     scenes = _entity_cards(hass, options.get(CONF_SCENE_ENTITIES, []))
     climates = _climate_cards(hass, options.get(CONF_CLIMATE_ENTITIES, []))
+    security = _security_data(hass, options)
     return {
         "ok": True,
         "schema_version": PAYLOAD_SCHEMA_VERSION,
@@ -1044,6 +1096,9 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
                 "scene_activate",
                 "climate_temperature",
                 "climate_mode",
+                "security_cover_toggle",
+                "security_lock_toggle",
+                "security_alarm_command",
             ],
             "stream": True,
             "background": True,
@@ -1076,10 +1131,12 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
             "lights": options.get(CONF_LIGHTS_TAB_ENABLED, True),
             "scenes": options.get(CONF_SCENES_TAB_ENABLED, True),
             "climate": options.get(CONF_CLIMATE_TAB_ENABLED, True),
+            "security": options.get(CONF_SECURITY_TAB_ENABLED, True),
         },
         "lights": lights,
         "scenes": scenes,
         "climates": climates,
+        "security": security,
     }
 
 
@@ -1102,6 +1159,9 @@ async def async_execute_action(
     lights = _as_list(options.get(CONF_LIGHT_ENTITIES, []))
     scenes = _as_list(options.get(CONF_SCENE_ENTITIES, []))
     climates = _as_list(options.get(CONF_CLIMATE_ENTITIES, []))
+    security_covers = _as_list(options.get(CONF_SECURITY_COVER_ENTITIES, []))[:2]
+    security_locks = _as_list(options.get(CONF_SECURITY_LOCK_ENTITIES, []))[:4]
+    security_alarm = options.get(CONF_SECURITY_ALARM_ENTITY, "")
 
     domain = ""
     service = ""
@@ -1129,6 +1189,15 @@ async def async_execute_action(
             return {"error": "invalid_mode"}, 400
         domain, service = "climate", "set_hvac_mode"
         data["hvac_mode"] = mode
+    elif action == "security_cover_toggle" and entity_id in security_covers:
+        domain, service = "cover", "toggle"
+    elif action == "security_lock_toggle" and entity_id in security_locks:
+        domain, service = "lock", "toggle"
+    elif action == "security_alarm_command" and entity_id == security_alarm:
+        command = str(body.get("command", ""))
+        if command not in ("alarm_disarm", "alarm_arm_home", "alarm_arm_away"):
+            return {"error": "invalid_command"}, 400
+        domain, service = "alarm_control_panel", command
     else:
         return {"error": "not_allowed"}, 403
 
