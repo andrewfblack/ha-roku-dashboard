@@ -204,6 +204,7 @@
           "lights": "Lights tab",
           "scenes": "Scenes and scripts",
           "climate": "Climate tab",
+          "security": "Security tab",
           "appearance": "Appearance",
           "pairing": "Pairing and security",
           "calendar": "Calendar tab",
@@ -286,6 +287,24 @@
         "data_description": {
           "climate_tab_enabled": "Adds the Climate control tab to Roku.",
           "climate_entities": "Only selected thermostats can be controlled from Roku."
+        }
+      },
+      "security": {
+        "title": "Security tab",
+        "description": "Configure garage doors, locks, the security system, and family presence.",
+        "data": {
+          "security_tab_enabled": "Enable Security tab",
+          "security_cover_entities": "Garage doors (up to 2)",
+          "security_lock_entities": "Door locks (up to 4)",
+          "security_alarm_entity": "Security system",
+          "security_family_entities": "Family members"
+        },
+        "data_description": {
+          "security_tab_enabled": "Adds the Security tab to Roku.",
+          "security_cover_entities": "Select up to two garage door covers.",
+          "security_lock_entities": "Select up to four door locks.",
+          "security_alarm_entity": "Optional alarm control panel.",
+          "security_family_entities": "Select person entities to show home/away status."
         }
       },
       "appearance": {
