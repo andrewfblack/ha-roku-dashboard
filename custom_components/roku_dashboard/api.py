@@ -929,7 +929,8 @@ async def _calendar_data(
     holiday_candidates = sorted(
         (event_date, title)
         for event_date, title, calendar_id, _calendar_name in generated
-        if calendar_id == "calendar.us_holidays" and event_date >= today_date
+        if calendar_id in ("calendar.us_holidays", "calendar.us_observances")
+        and event_date >= today_date
     )
     if holiday_candidates:
         event_date, title = holiday_candidates[0]
