@@ -888,23 +888,23 @@ async def _calendar_data(
                 }
             )
 
-    generated: list[tuple[date, str]] = []
-    years = {month_start.year, fetch_end.year}
+    generated: list[tuple[date, str, str, str]] = []
+    years = {month_start.year, fetch_end.year, today_date.year + 1}
     if include_us_holidays:
         for year in years:
-            generated.extend(_us_federal_holidays(year))
+            generated.extend((event_date, title, "calendar.us_holidays", "US Holidays") for event_date, title in _us_federal_holidays(year))
     if include_us_observances:
         for year in years:
-            generated.extend(_us_observances(year))
-    for event_date, title in generated:
+            generated.extend((event_date, title, "calendar.us_observances", "US Observances") for event_date, title in _us_observances(year))
+    for event_date, title, calendar_id, calendar_name in generated:
         if month_start.date() <= event_date < fetch_end.date():
             output.append(
                 {
                     "title": title,
                     "start": event_date.isoformat(),
                     "all_day": True,
-                    "calendar_id": "calendar.us_holidays",
-                    "calendar_name": "US Holidays",
+                    "calendar_id": calendar_id,
+                    "calendar_name": calendar_name,
                     "color": "E5A84B",
                 }
             )
@@ -924,6 +924,19 @@ async def _calendar_data(
     event_days = sorted({int(item["start"][8:10]) for item in month_events})
     today = today_date.isoformat()
     todays_events = [item for item in output if item["start"][:10] == today]
+    next_holiday = None
+    holiday_candidates = sorted(
+        (event_date, title)
+        for event_date, title, calendar_id, _calendar_name in generated
+        if calendar_id == "calendar.us_holidays" and event_date >= today_date
+    )
+    if holiday_candidates:
+        event_date, title = holiday_candidates[0]
+        next_holiday = {
+            "title": title,
+            "start": event_date.isoformat(),
+            "all_day": True,
+        }
 
     schedule_columns = []
     for offset in range(schedule_days):
@@ -956,6 +969,7 @@ async def _calendar_data(
         "first_weekday": first_weekday,
         "event_days": event_days,
         "events": month_events,
+        "next_holiday": next_holiday,
     }
     schedule = {
         "title": f"{today_date.strftime('%B')} {today_date.day}",
@@ -1118,6 +1132,7 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
         "today_events": events,
         "month_calendar": month,
         "calendar_schedule": schedule,
+        "next_holiday": month.get("next_holiday"),
         "background": options.get(CONF_BACKGROUND, "fall"),
         "background_url": options.get(CONF_BACKGROUND_URL, ""),
         "background_version": options.get(CONF_BACKGROUND_VERSION, ""),
