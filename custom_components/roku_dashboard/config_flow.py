@@ -48,6 +48,7 @@ from .const import (
     CONF_CALENDAR_TAB_ENABLED,
     CONF_CALENDAR_SCHEDULE_DAYS,
     CONF_CALENDAR_EVENTS_PER_DAY,
+    CONF_NEXT_HOLIDAY_ENABLED,
     CONF_INDOOR_ENTITY,
     CONF_LAYOUT,
     CONF_MEAL_ENTITY,
@@ -315,6 +316,10 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
             default=defaults.get(CONF_CALENDAR_EVENTS_PER_DAY, 5),
         ): vol.All(vol.Coerce(int), vol.Range(min=2, max=6)),
         vol.Required(
+            CONF_NEXT_HOLIDAY_ENABLED,
+            default=defaults.get(CONF_NEXT_HOLIDAY_ENABLED, True),
+        ): bool,
+        vol.Required(
             CONF_US_HOLIDAYS_ENABLED,
             default=defaults.get(CONF_US_HOLIDAYS_ENABLED, True),
         ): bool,
@@ -455,6 +460,10 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                     CONF_CALENDAR_EVENTS_PER_DAY,
                     default=defaults.get(CONF_CALENDAR_EVENTS_PER_DAY, 5),
                 ): vol.All(vol.Coerce(int), vol.Range(min=2, max=6)),
+                vol.Required(
+                    CONF_NEXT_HOLIDAY_ENABLED,
+                    default=defaults.get(CONF_NEXT_HOLIDAY_ENABLED, True),
+                ): bool,
                 vol.Required(
                     CONF_US_HOLIDAYS_ENABLED,
                     default=defaults.get(CONF_US_HOLIDAYS_ENABLED, True),
@@ -721,6 +730,7 @@ class RokuDashboardOptionsFlow(OptionsFlow):
             CONF_CALENDAR_ENTITIES,
             CONF_CALENDAR_SCHEDULE_DAYS,
             CONF_CALENDAR_EVENTS_PER_DAY,
+            CONF_NEXT_HOLIDAY_ENABLED,
             CONF_US_HOLIDAYS_ENABLED,
             CONF_US_OBSERVANCES_ENABLED,
         ],

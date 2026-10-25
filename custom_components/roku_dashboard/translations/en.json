@@ -32,6 +32,7 @@
           "calendar_tab_enabled": "Enable Calendar tab",
           "calendar_schedule_days": "Days shown in schedule (3-7)",
           "calendar_events_per_day": "Events shown per day (2-6)",
+          "next_holiday_enabled": "Show next holiday on Home",
           "access_mode": "Dashboard network access",
           "dashboard_title": "Dashboard name",
           "indoor_humidity_entity": "Indoor humidity sensor",
@@ -70,6 +71,7 @@
           "calendar_tab_enabled": "Adds a Skylight-style rolling family schedule tab to Roku.",
           "calendar_schedule_days": "Number of day columns, beginning with today.",
           "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more.",
+          "next_holiday_enabled": "Keep the next federal holiday or observed holiday pinned at the bottom of the Home calendar.",
           "access_mode": "LAN only is safest. Tailscale permits 100.64.0.0/10. External permits existing paired devices over HTTPS; pairing still requires LAN or Tailscale.",
           "dashboard_title": "Name displayed at the top of the web dashboard and Home screen.",
           "indoor_humidity_entity": "Optional separate humidity sensor shown with the inside temperature.",
@@ -107,6 +109,7 @@
           "calendar_tab_enabled": "Enable Calendar tab",
           "calendar_schedule_days": "Days shown in schedule (3-7)",
           "calendar_events_per_day": "Events shown per day (2-6)",
+          "next_holiday_enabled": "Show next holiday on Home",
           "access_mode": "Dashboard network access",
           "dashboard_title": "Dashboard name",
           "indoor_humidity_entity": "Indoor humidity sensor",
@@ -144,6 +147,7 @@
           "calendar_tab_enabled": "Adds a Skylight-style rolling family schedule tab to Roku.",
           "calendar_schedule_days": "Number of day columns, beginning with today.",
           "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more.",
+          "next_holiday_enabled": "Keep the next federal holiday or observed holiday pinned at the bottom of the Home calendar.",
           "access_mode": "LAN only is safest. Tailscale permits 100.64.0.0/10. External permits existing paired devices over HTTPS; pairing still requires LAN or Tailscale.",
           "dashboard_title": "Name displayed at the top of the web dashboard and Home screen.",
           "indoor_humidity_entity": "Optional separate humidity sensor shown with the inside temperature."
@@ -343,6 +347,7 @@
           "calendar_entities": "Calendars to display (optional)",
           "calendar_schedule_days": "Days shown in schedule (3-7)",
           "calendar_events_per_day": "Events shown per day (2-6)",
+          "next_holiday_enabled": "Show next holiday on Home",
           "us_holidays_enabled": "Add US federal holidays",
           "us_observances_enabled": "Add common US observances"
         },
@@ -351,6 +356,7 @@
           "calendar_entities": "Only events from the selected calendars are shown on the Home tab. Leave empty to show all calendars.",
           "calendar_schedule_days": "Number of day columns, beginning with today.",
           "calendar_events_per_day": "Maximum event cards in each day column; extra events show as +N more.",
+          "next_holiday_enabled": "Keep the next federal holiday or observed holiday pinned at the bottom of the Home calendar.",
           "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar.",
           "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances."
         }
