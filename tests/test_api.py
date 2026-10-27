@@ -157,6 +157,7 @@ async def test_payload_builds_an_ios_remote(hass, entry):
     assert payload["remotes"][0]["kind"] == "roku"
     assert payload["remotes"][0]["remote_entity_id"] == "remote.living_room_roku"
     assert "replay" in payload["remotes"][0]["commands"]
+    assert "options" in payload["remotes"][0]["commands"]
 
 
 @pytest.mark.asyncio
@@ -230,6 +231,32 @@ async def test_lg_remote_uses_the_webos_button_service(hass, entry):
         "button",
         {"entity_id": "media_player.lg_webos_tv", "button": "ENTER"},
     )
+
+
+@pytest.mark.asyncio
+async def test_roku_transport_buttons_use_remote_commands(hass, entry):
+    """Backward and forward use the actual Roku remote keys."""
+    entry.options = {"media_player_entities": ["media_player.den_roku"]}
+    hass.states.set("media_player.den_roku", "playing", {"friendly_name": "Den Roku"})
+    hass.states.set("remote.den_roku", "on")
+
+    for semantic, command in (("reverse", "reverse"), ("forward", "forward")):
+        result, status = await api.async_execute_action(
+            hass,
+            entry,
+            {
+                "action": "remote_command",
+                "entity_id": "media_player.den_roku",
+                "command": semantic,
+            },
+        )
+        assert status == 200
+        assert result["ok"] is True
+        assert hass.services.calls[-1] == (
+            "remote",
+            "send_command",
+            {"entity_id": "remote.den_roku", "command": command},
+        )
 
 
 @pytest.mark.asyncio

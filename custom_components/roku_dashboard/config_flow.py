@@ -92,6 +92,8 @@ from .const import (
     CONF_THEME_SELECTED_BACKGROUND,
     CONF_THEME_SELECTED_BORDER,
     CONF_THEME_ITEM_BORDER,
+    CONF_THEME_REMOTE_BUTTON_BACKGROUND,
+    CONF_THEME_REMOTE_BUTTON_TEXT,
     CONF_THEME_ITEM_OPACITY,
     CONF_THEME_BACKGROUND_OVERLAY,
     CREATE_NEW_MEAL_HELPER,
@@ -665,6 +667,20 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                     ),
                 ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
                 vol.Required(
+                    CONF_THEME_REMOTE_BUTTON_BACKGROUND,
+                    default=_theme_hex(
+                        defaults.get(CONF_THEME_REMOTE_BUTTON_BACKGROUND),
+                        THEME_DEFAULTS[CONF_THEME_REMOTE_BUTTON_BACKGROUND],
+                    ),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
+                vol.Required(
+                    CONF_THEME_REMOTE_BUTTON_TEXT,
+                    default=_theme_hex(
+                        defaults.get(CONF_THEME_REMOTE_BUTTON_TEXT),
+                        THEME_DEFAULTS[CONF_THEME_REMOTE_BUTTON_TEXT],
+                    ),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
+                vol.Required(
                     CONF_THEME_ITEM_OPACITY,
                     default=defaults.get(CONF_THEME_ITEM_OPACITY, THEME_DEFAULTS[CONF_THEME_ITEM_OPACITY]),
                 ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
@@ -789,6 +805,8 @@ class RokuDashboardOptionsFlow(OptionsFlow):
             CONF_THEME_SELECTED_BACKGROUND,
             CONF_THEME_SELECTED_BORDER,
             CONF_THEME_ITEM_BORDER,
+            CONF_THEME_REMOTE_BUTTON_BACKGROUND,
+            CONF_THEME_REMOTE_BUTTON_TEXT,
             CONF_THEME_ITEM_OPACITY,
             CONF_THEME_BACKGROUND_OVERLAY,
         ],

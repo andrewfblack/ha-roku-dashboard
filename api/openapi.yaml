@@ -676,6 +676,12 @@ components:
           type: string
         item_border:
           type: string
+        remote_button_background:
+          type: string
+          default: "#000000"
+        remote_button_text:
+          type: string
+          default: "#FFFFFF"
         item_opacity:
           type: integer
           minimum: 0

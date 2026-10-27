@@ -433,6 +433,8 @@
           "theme_selected_background": "Selected item background color",
           "theme_selected_border": "Selected item border color",
           "theme_item_border": "Card and item border color",
+          "theme_remote_button_background": "Remote button background color",
+          "theme_remote_button_text": "Remote button icon color",
           "theme_item_opacity": "Card background opacity (0–100)",
           "theme_background_overlay": "Background image darkening (0–100)"
         },
@@ -447,6 +449,8 @@
           "theme_selected_background": "Fill color for active tabs and selected controls. Hex colour, for example #9B542B.",
           "theme_selected_border": "Focus ring and active selection outline. Hex colour, for example #FFD28C.",
           "theme_item_border": "Normal border around cards and controls. Hex colour, for example #59483C.",
+          "theme_remote_button_background": "Background for every iOS remote button. Defaults to #000000.",
+          "theme_remote_button_text": "Icon color for every iOS remote button. Defaults to #FFFFFF.",
           "theme_item_opacity": "Transparency of cards over the dashboard background.",
           "theme_background_overlay": "How much the background image is darkened for readability."
         }

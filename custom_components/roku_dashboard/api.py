@@ -81,6 +81,8 @@ from .const import (
     CONF_THEME_SELECTED_BACKGROUND,
     CONF_THEME_SELECTED_BORDER,
     CONF_THEME_ITEM_BORDER,
+    CONF_THEME_REMOTE_BUTTON_BACKGROUND,
+    CONF_THEME_REMOTE_BUTTON_TEXT,
     CONF_THEME_ITEM_OPACITY,
     CONF_THEME_BACKGROUND_OVERLAY,
     API_NAMESPACE,
@@ -112,6 +114,8 @@ def _theme_data(options: dict[str, Any]) -> dict[str, Any]:
         "selected_background": _theme_color(options, CONF_THEME_SELECTED_BACKGROUND),
         "selected_border": _theme_color(options, CONF_THEME_SELECTED_BORDER),
         "item_border": _theme_color(options, CONF_THEME_ITEM_BORDER),
+        "remote_button_background": _theme_color(options, CONF_THEME_REMOTE_BUTTON_BACKGROUND),
+        "remote_button_text": _theme_color(options, CONF_THEME_REMOTE_BUTTON_TEXT),
         "item_opacity": max(0, min(100, int(options.get(CONF_THEME_ITEM_OPACITY, THEME_DEFAULTS[CONF_THEME_ITEM_OPACITY])))),
         "background_overlay": max(0, min(100, int(options.get(CONF_THEME_BACKGROUND_OVERLAY, THEME_DEFAULTS[CONF_THEME_BACKGROUND_OVERLAY])))),
     }
@@ -720,9 +724,12 @@ def _matching_remote(hass, media_player_id: str) -> tuple[str, str]:
 def _remote_commands(kind: str, has_remote: bool) -> list[str]:
     if not has_remote and kind != "lg":
         return []
-    commands = ["up", "down", "left", "right", "select", "back", "home"]
+    commands = [
+        "up", "down", "left", "right", "select", "back", "home",
+        "reverse", "forward",
+    ]
     if kind == "roku":
-        commands.extend(["replay", "info"])
+        commands.extend(["replay", "options", "info"])
     elif kind == "apple_tv":
         commands.append("menu")
     elif kind == "lg":
@@ -1356,19 +1363,23 @@ async def async_execute_action(
                 "roku": {
                     "up": "up", "down": "down", "left": "left", "right": "right",
                     "select": "select", "back": "back", "home": "home",
-                    "replay": "replay", "info": "info",
+                    "reverse": "reverse", "forward": "forward", "replay": "replay",
+                    "options": "info", "info": "info",
                 },
                 "apple_tv": {
                     "up": "up", "down": "down", "left": "left", "right": "right",
                     "select": "select", "back": "menu", "home": "home", "menu": "top_menu",
+                    "reverse": "skip_backward", "forward": "skip_forward",
                 },
                 "lg": {
                     "up": "UP", "down": "DOWN", "left": "LEFT", "right": "RIGHT",
                     "select": "ENTER", "back": "BACK", "home": "HOME", "input": "INPUT",
+                    "reverse": "REWIND", "forward": "FASTFORWARD",
                 },
                 "generic": {
                     "up": "up", "down": "down", "left": "left", "right": "right",
                     "select": "select", "back": "back", "home": "home",
+                    "reverse": "reverse", "forward": "forward",
                 },
             }
             translated = command_maps[kind].get(semantic)
