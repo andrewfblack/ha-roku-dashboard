@@ -622,6 +622,11 @@ components:
               type: boolean
             remote:
               type: boolean
+            order:
+              type: array
+              items:
+                type: string
+              description: The administrator's preferred tab order.
         lights:
           type: array
           items:

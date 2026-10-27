@@ -69,6 +69,8 @@ from .const import (
     CONF_SECURITY_FAMILY_ENTITIES,
     CONF_REMOTE_TAB_ENABLED,
     CONF_MEDIA_PLAYER_ENTITIES,
+    CONF_REMOTE_ORDER,
+    CONF_TAB_ORDER,
     CONF_US_HOLIDAYS_ENABLED,
     CONF_US_OBSERVANCES_ENABLED,
     CONF_THEME_HEADER_TEXT,
@@ -88,6 +90,7 @@ from .const import (
     API_NAMESPACE,
     DATA_STREAM,
     DOMAIN,
+    DEFAULT_TAB_ORDER,
     PAIRING_CODE_TTL,
     PAIRING_POLL_INTERVAL,
     PAYLOAD_SCHEMA_VERSION,
@@ -767,6 +770,14 @@ def _remote_cards(hass, configured: Any) -> list[dict[str, Any]]:
     return cards
 
 
+def _ordered_values(configured: Any, preferred: Any) -> list[str]:
+    """Apply a saved display order without losing newly configured values."""
+    values = _as_list(configured)
+    ordered = [item for item in _as_list(preferred) if item in values]
+    ordered.extend(item for item in values if item not in ordered)
+    return ordered
+
+
 def _security_data(hass, options: dict[str, Any]) -> dict[str, Any]:
     """Build the allowlisted security controls and family presence list."""
     def cards(configured: Any, limit: int) -> list[dict[str, Any]]:
@@ -1192,7 +1203,20 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
     scenes = _entity_cards(hass, options.get(CONF_SCENE_ENTITIES, []))
     climates = _climate_cards(hass, options.get(CONF_CLIMATE_ENTITIES, []))
     security = _security_data(hass, options)
-    remotes = _remote_cards(hass, options.get(CONF_MEDIA_PLAYER_ENTITIES, []))
+    remotes = _remote_cards(
+        hass,
+        _ordered_values(
+            options.get(CONF_MEDIA_PLAYER_ENTITIES, []),
+            options.get(CONF_REMOTE_ORDER, []),
+        ),
+    )
+    configured_tab_order = [
+        item for item in _as_list(options.get(CONF_TAB_ORDER, DEFAULT_TAB_ORDER))
+        if item in DEFAULT_TAB_ORDER
+    ]
+    tab_order = configured_tab_order + [
+        item for item in DEFAULT_TAB_ORDER if item not in configured_tab_order
+    ]
     return {
         "ok": True,
         "schema_version": PAYLOAD_SCHEMA_VERSION,
@@ -1252,6 +1276,7 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
             "climate": options.get(CONF_CLIMATE_TAB_ENABLED, True),
             "security": options.get(CONF_SECURITY_TAB_ENABLED, True),
             "remote": options.get(CONF_REMOTE_TAB_ENABLED, False),
+            "order": tab_order,
         },
         "lights": lights,
         "scenes": scenes,

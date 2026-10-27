@@ -218,6 +218,7 @@
           "climate": "Climate tab",
           "security": "Security tab",
           "remote": "iOS Remote tab",
+          "navigation": "Tab order",
           "appearance": "Appearance",
           "pairing": "Pairing and security",
           "calendar": "Calendar tab",
@@ -325,11 +326,23 @@
         "description": "Choose the televisions and streaming players available in the iPhone and iPad remote.",
         "data": {
           "remote_tab_enabled": "Enable iOS Remote tab",
-          "media_player_entities": "Media players to control"
+          "media_player_entities": "Media players to control",
+          "remote_order": "Remote order"
         },
         "data_description": {
           "remote_tab_enabled": "This tab is never shown by the Roku or Apple TV dashboard apps.",
-          "media_player_entities": "A remote entity attached to the same Home Assistant device is matched automatically for directional controls."
+          "media_player_entities": "A remote entity attached to the same Home Assistant device is matched automatically for directional controls.",
+          "remote_order": "Select the configured players in the order they should appear in the iOS player switcher."
+        }
+      },
+      "navigation": {
+        "title": "Tab order",
+        "description": "Choose the order used by the Apple dashboard tabs.",
+        "data": {
+          "tab_order": "Dashboard tab order"
+        },
+        "data_description": {
+          "tab_order": "Select every tab in the order it should appear. Disabled tabs keep their position for when they are enabled again."
         }
       },
       "appearance": {
