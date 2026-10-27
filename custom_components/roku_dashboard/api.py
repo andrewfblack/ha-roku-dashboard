@@ -28,6 +28,7 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from . import pairing, theme
@@ -66,6 +67,8 @@ from .const import (
     CONF_SECURITY_LOCK_ENTITIES,
     CONF_SECURITY_ALARM_ENTITY,
     CONF_SECURITY_FAMILY_ENTITIES,
+    CONF_REMOTE_TAB_ENABLED,
+    CONF_MEDIA_PLAYER_ENTITIES,
     CONF_US_HOLIDAYS_ENABLED,
     CONF_US_OBSERVANCES_ENABLED,
     CONF_THEME_HEADER_TEXT,
@@ -522,7 +525,12 @@ def tracked_entities(entry) -> set[str]:
         value = str(options.get(key, "") or "")
         if value:
             entity_ids.add(value)
-    for key in (CONF_LIGHT_ENTITIES, CONF_SCENE_ENTITIES, CONF_CLIMATE_ENTITIES):
+    for key in (
+        CONF_LIGHT_ENTITIES,
+        CONF_SCENE_ENTITIES,
+        CONF_CLIMATE_ENTITIES,
+        CONF_MEDIA_PLAYER_ENTITIES,
+    ):
         entity_ids.update(_as_list(options.get(key, [])))
     return entity_ids
 
@@ -666,6 +674,87 @@ def _entity_cards(hass, configured: Any) -> list[dict[str, Any]]:
                 "state": state.state,
                 "brightness": state.attributes.get("brightness"),
                 "color_temp_kelvin": state.attributes.get("color_temp_kelvin"),
+            }
+        )
+    return cards
+
+
+def _remote_kind(entity_id: str, name: str, platform: str = "") -> str:
+    """Classify a selected player into a small, stable remote layout family."""
+    value = f"{entity_id} {name} {platform}".lower()
+    if "roku" in value:
+        return "roku"
+    if "apple_tv" in value or "apple tv" in value or "apple-tv" in value:
+        return "apple_tv"
+    if "webostv" in value or "webos" in value or "lg " in value or value.endswith(" lg"):
+        return "lg"
+    return "generic"
+
+
+def _matching_remote(hass, media_player_id: str) -> tuple[str, str]:
+    """Return the remote entity and integration platform for a media player."""
+    registry = er.async_get(hass)
+    player_entry = registry.async_get(media_player_id)
+    platform = str(getattr(player_entry, "platform", "") or "")
+    device_id = getattr(player_entry, "device_id", None)
+    entities = getattr(registry, "entities", {})
+    values = entities.values() if hasattr(entities, "values") else []
+    if device_id:
+        for entry in values:
+            if (
+                getattr(entry, "domain", "") == "remote"
+                and getattr(entry, "device_id", None) == device_id
+                and hass.states.get(str(entry.entity_id)) is not None
+            ):
+                return str(entry.entity_id), platform or str(getattr(entry, "platform", "") or "")
+
+    # This convention covers many Roku, Apple TV and webOS installations even
+    # when an entity registry entry is unavailable (for example during tests).
+    object_id = media_player_id.split(".", 1)[-1]
+    candidate = f"remote.{object_id}"
+    if hass.states.get(candidate) is not None:
+        return candidate, platform
+    return "", platform
+
+
+def _remote_commands(kind: str, has_remote: bool) -> list[str]:
+    if not has_remote and kind != "lg":
+        return []
+    commands = ["up", "down", "left", "right", "select", "back", "home"]
+    if kind == "roku":
+        commands.extend(["replay", "info"])
+    elif kind == "apple_tv":
+        commands.append("menu")
+    elif kind == "lg":
+        commands.append("input")
+    return commands
+
+
+def _remote_cards(hass, configured: Any) -> list[dict[str, Any]]:
+    """Build iOS remote cards for the configured media players."""
+    cards: list[dict[str, Any]] = []
+    for entity_id in _as_list(configured):
+        state = hass.states.get(entity_id)
+        if state is None:
+            continue
+        attrs = state.attributes
+        name = str(attrs.get("friendly_name", entity_id))
+        remote_id, platform = _matching_remote(hass, entity_id)
+        kind = _remote_kind(entity_id, name, platform)
+        cards.append(
+            {
+                "entity_id": entity_id,
+                "remote_entity_id": remote_id or None,
+                "name": name,
+                "kind": kind,
+                "state": state.state,
+                "volume_level": attrs.get("volume_level"),
+                "is_volume_muted": bool(attrs.get("is_volume_muted", False)),
+                "media_title": attrs.get("media_title"),
+                "media_artist": attrs.get("media_artist"),
+                "source": attrs.get("source") or attrs.get("app_name"),
+                "source_list": attrs.get("source_list") or [],
+                "commands": _remote_commands(kind, bool(remote_id)),
             }
         )
     return cards
@@ -1096,6 +1185,7 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
     scenes = _entity_cards(hass, options.get(CONF_SCENE_ENTITIES, []))
     climates = _climate_cards(hass, options.get(CONF_CLIMATE_ENTITIES, []))
     security = _security_data(hass, options)
+    remotes = _remote_cards(hass, options.get(CONF_MEDIA_PLAYER_ENTITIES, []))
     return {
         "ok": True,
         "schema_version": PAYLOAD_SCHEMA_VERSION,
@@ -1115,6 +1205,11 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
                 "security_cover_toggle",
                 "security_lock_toggle",
                 "security_alarm_command",
+                "media_power",
+                "media_play_pause",
+                "media_volume",
+                "media_source",
+                "remote_command",
             ],
             "stream": True,
             "background": True,
@@ -1149,11 +1244,13 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
             "scenes": options.get(CONF_SCENES_TAB_ENABLED, True),
             "climate": options.get(CONF_CLIMATE_TAB_ENABLED, True),
             "security": options.get(CONF_SECURITY_TAB_ENABLED, True),
+            "remote": options.get(CONF_REMOTE_TAB_ENABLED, False),
         },
         "lights": lights,
         "scenes": scenes,
         "climates": climates,
         "security": security,
+        "remotes": remotes,
     }
 
 
@@ -1179,6 +1276,7 @@ async def async_execute_action(
     security_covers = _as_list(options.get(CONF_SECURITY_COVER_ENTITIES, []))[:2]
     security_locks = _as_list(options.get(CONF_SECURITY_LOCK_ENTITIES, []))[:4]
     security_alarm = options.get(CONF_SECURITY_ALARM_ENTITY, "")
+    media_players = _as_list(options.get(CONF_MEDIA_PLAYER_ENTITIES, []))
 
     domain = ""
     service = ""
@@ -1215,6 +1313,75 @@ async def async_execute_action(
         if command not in ("alarm_disarm", "alarm_arm_home", "alarm_arm_away"):
             return {"error": "invalid_command"}, 400
         domain, service = "alarm_control_panel", command
+    elif action in (
+        "media_power",
+        "media_play_pause",
+        "media_volume",
+        "media_source",
+        "remote_command",
+    ) and entity_id in media_players:
+        state = hass.states.get(entity_id)
+        if state is None:
+            return {"error": "not_found"}, 404
+        if action == "media_power":
+            domain = "media_player"
+            service = "turn_on" if state.state in ("off", "standby", "unavailable") else "turn_off"
+        elif action == "media_play_pause":
+            domain, service = "media_player", "media_play_pause"
+        elif action == "media_volume":
+            command = str(body.get("command", ""))
+            if command == "up":
+                domain, service = "media_player", "volume_up"
+            elif command == "down":
+                domain, service = "media_player", "volume_down"
+            elif command == "mute":
+                domain, service = "media_player", "volume_mute"
+                data["is_volume_muted"] = not bool(state.attributes.get("is_volume_muted", False))
+            else:
+                return {"error": "invalid_command"}, 400
+        elif action == "media_source":
+            source = str(body.get("value", ""))
+            if source not in (state.attributes.get("source_list") or []):
+                return {"error": "invalid_source"}, 400
+            domain, service = "media_player", "select_source"
+            data["source"] = source
+        else:
+            semantic = str(body.get("command", ""))
+            remote_id, platform = _matching_remote(hass, entity_id)
+            name = str(state.attributes.get("friendly_name", entity_id))
+            kind = _remote_kind(entity_id, name, platform)
+            if semantic not in _remote_commands(kind, bool(remote_id)):
+                return {"error": "invalid_command"}, 400
+            command_maps = {
+                "roku": {
+                    "up": "up", "down": "down", "left": "left", "right": "right",
+                    "select": "select", "back": "back", "home": "home",
+                    "replay": "replay", "info": "info",
+                },
+                "apple_tv": {
+                    "up": "up", "down": "down", "left": "left", "right": "right",
+                    "select": "select", "back": "menu", "home": "home", "menu": "top_menu",
+                },
+                "lg": {
+                    "up": "UP", "down": "DOWN", "left": "LEFT", "right": "RIGHT",
+                    "select": "ENTER", "back": "BACK", "home": "HOME", "input": "INPUT",
+                },
+                "generic": {
+                    "up": "up", "down": "down", "left": "left", "right": "right",
+                    "select": "select", "back": "back", "home": "home",
+                },
+            }
+            translated = command_maps[kind].get(semantic)
+            if not translated:
+                return {"error": "invalid_command"}, 400
+            if kind == "lg":
+                domain, service = "webostv", "button"
+                data = {"entity_id": entity_id, "button": translated}
+            else:
+                if not remote_id:
+                    return {"error": "remote_unavailable"}, 400
+                domain, service = "remote", "send_command"
+                data = {"entity_id": remote_id, "command": translated}
     else:
         return {"error": "not_allowed"}, 403
 

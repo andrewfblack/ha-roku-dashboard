@@ -25,7 +25,7 @@ DEVICE_TOUCH_INTERVAL = 300
 PLATFORMS = ("ios", "tvos", "roku", "web", "android", "legacy", "unknown")
 
 # Version of the dashboard payload contract. Bump when the shape changes.
-PAYLOAD_SCHEMA_VERSION = 2
+PAYLOAD_SCHEMA_VERSION = 3
 
 CONF_INDOOR_ENTITY = "indoor_entity"
 CONF_OUTDOOR_ENTITY = "outdoor_entity"
@@ -51,6 +51,8 @@ CONF_SECURITY_COVER_ENTITIES = "security_cover_entities"
 CONF_SECURITY_LOCK_ENTITIES = "security_lock_entities"
 CONF_SECURITY_ALARM_ENTITY = "security_alarm_entity"
 CONF_SECURITY_FAMILY_ENTITIES = "security_family_entities"
+CONF_REMOTE_TAB_ENABLED = "remote_tab_enabled"
+CONF_MEDIA_PLAYER_ENTITIES = "media_player_entities"
 CONF_US_HOLIDAYS_ENABLED = "us_holidays_enabled"
 CONF_US_OBSERVANCES_ENABLED = "us_observances_enabled"
 CONF_BACKGROUND_FILE = "background_file"

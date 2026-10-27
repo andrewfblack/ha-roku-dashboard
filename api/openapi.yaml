@@ -493,6 +493,14 @@ components:
             - scene_activate
             - climate_temperature
             - climate_mode
+            - security_cover_toggle
+            - security_lock_toggle
+            - security_alarm_command
+            - media_power
+            - media_play_pause
+            - media_volume
+            - media_source
+            - remote_command
         entity_id:
           type: string
           description: Required for every action except `meal_week`.
@@ -507,6 +515,9 @@ components:
             - type: array
               items:
                 type: string
+        command:
+          type: string
+          description: A semantic volume, security, or remote command.
       required: [action]
 
     ActionResult:
@@ -531,7 +542,7 @@ components:
         schema_version:
           type: integer
           description: The version of this contract.
-          examples: [2]
+          examples: [3]
         server_time:
           type: string
           format: date-time
@@ -609,6 +620,8 @@ components:
               type: boolean
             climate:
               type: boolean
+            remote:
+              type: boolean
         lights:
           type: array
           items:
@@ -621,6 +634,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ClimateCard"
+        remotes:
+          type: array
+          items:
+            $ref: "#/components/schemas/RemoteCard"
       required:
         - ok
         - schema_version
@@ -886,3 +903,41 @@ components:
         target_temp_step:
           type: number
           default: 1
+
+    RemoteCard:
+      type: object
+      properties:
+        entity_id:
+          type: string
+        remote_entity_id:
+          type: string
+          nullable: true
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [roku, apple_tv, lg, generic]
+        state:
+          type: string
+        volume_level:
+          type: number
+          nullable: true
+        is_volume_muted:
+          type: boolean
+        media_title:
+          type: string
+          nullable: true
+        media_artist:
+          type: string
+          nullable: true
+        source:
+          type: string
+          nullable: true
+        source_list:
+          type: array
+          items:
+            type: string
+        commands:
+          type: array
+          items:
+            type: string

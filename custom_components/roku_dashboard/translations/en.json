@@ -27,6 +27,8 @@
           "security_lock_entities": "Door locks (up to 4)",
           "security_alarm_entity": "Security system",
           "security_family_entities": "Family members",
+          "remote_tab_enabled": "Enable iOS Remote tab",
+          "media_player_entities": "Media players to control",
           "us_holidays_enabled": "Add US federal holidays",
           "us_observances_enabled": "Add common US observances",
           "calendar_tab_enabled": "Enable Calendar tab",
@@ -66,6 +68,8 @@
           "security_lock_entities": "Select up to four door locks.",
           "security_alarm_entity": "Optional alarm control panel.",
           "security_family_entities": "Select person entities to show home/not-home status.",
+          "remote_tab_enabled": "Adds a Remote tab to the iPhone and iPad app only.",
+          "media_player_entities": "Select Roku, Apple TV, LG TV, and other media players. A remote entity on the same Home Assistant device is matched automatically.",
           "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar.",
           "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances.",
           "calendar_tab_enabled": "Adds a Skylight-style rolling family schedule tab to Roku.",
@@ -104,6 +108,8 @@
           "security_lock_entities": "Door locks (up to 4)",
           "security_alarm_entity": "Security system",
           "security_family_entities": "Family members",
+          "remote_tab_enabled": "Enable iOS Remote tab",
+          "media_player_entities": "Media players to control",
           "us_holidays_enabled": "Add US federal holidays",
           "us_observances_enabled": "Add common US observances",
           "calendar_tab_enabled": "Enable Calendar tab",
@@ -142,6 +148,8 @@
           "security_lock_entities": "Select up to four door locks.",
           "security_alarm_entity": "Optional alarm control panel.",
           "security_family_entities": "Select person entities to show home/not-home status.",
+          "remote_tab_enabled": "Adds a Remote tab to the iPhone and iPad app only.",
+          "media_player_entities": "Select media players that paired iOS devices may control.",
           "us_holidays_enabled": "Automatically merge US federal holidays and observed dates into the Roku calendar.",
           "us_observances_enabled": "Add Valentine's Day, Easter, Mother's Day, Father's Day, Halloween, and other common observances.",
           "calendar_tab_enabled": "Adds a Skylight-style rolling family schedule tab to Roku.",
@@ -209,6 +217,7 @@
           "scenes": "Scenes and scripts",
           "climate": "Climate tab",
           "security": "Security tab",
+          "remote": "iOS Remote tab",
           "appearance": "Appearance",
           "pairing": "Pairing and security",
           "calendar": "Calendar tab",
@@ -309,6 +318,18 @@
           "security_lock_entities": "Select up to four door locks.",
           "security_alarm_entity": "Optional alarm control panel.",
           "security_family_entities": "Select person entities to show home/away status."
+        }
+      },
+      "remote": {
+        "title": "iOS Remote tab",
+        "description": "Choose the televisions and streaming players available in the iPhone and iPad remote.",
+        "data": {
+          "remote_tab_enabled": "Enable iOS Remote tab",
+          "media_player_entities": "Media players to control"
+        },
+        "data_description": {
+          "remote_tab_enabled": "This tab is never shown by the Roku or Apple TV dashboard apps.",
+          "media_player_entities": "A remote entity attached to the same Home Assistant device is matched automatically for directional controls."
         }
       },
       "appearance": {

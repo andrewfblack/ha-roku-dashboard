@@ -72,10 +72,11 @@ async def test_payload_declares_the_contract(hass, entry):
     payload = await api.async_dashboard_payload(hass, entry)
 
     assert payload["ok"] is True
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     assert payload["dashboard_id"] == entry.entry_id
     assert payload["server_time"]
     assert "light_toggle" in payload["capabilities"]["actions"]
+    assert "remote_command" in payload["capabilities"]["actions"]
     assert payload["capabilities"]["stream"] is True
 
 
@@ -129,6 +130,106 @@ async def test_actions_are_allowlisted(hass, entry):
     assert status == 200
     assert result["ok"] is True
     assert hass.services.calls[-1][:2] == ("light", "toggle")
+
+
+@pytest.mark.asyncio
+async def test_payload_builds_an_ios_remote(hass, entry):
+    """Configured media players carry a player-specific command layout."""
+    entry.options = {
+        "remote_tab_enabled": True,
+        "media_player_entities": ["media_player.living_room_roku"],
+    }
+    hass.states.set(
+        "media_player.living_room_roku",
+        "playing",
+        {
+            "friendly_name": "Living Room Roku",
+            "media_title": "Family Movie",
+            "volume_level": 0.35,
+            "source_list": ["Home", "Netflix"],
+        },
+    )
+    hass.states.set("remote.living_room_roku", "on")
+
+    payload = await api.async_dashboard_payload(hass, entry)
+
+    assert payload["tabs"]["remote"] is True
+    assert payload["remotes"][0]["kind"] == "roku"
+    assert payload["remotes"][0]["remote_entity_id"] == "remote.living_room_roku"
+    assert "replay" in payload["remotes"][0]["commands"]
+
+
+@pytest.mark.asyncio
+async def test_remote_actions_are_allowlisted_and_translated(hass, entry):
+    """Only selected players receive semantic remote commands."""
+    entry.options = {"media_player_entities": ["media_player.living_room_roku"]}
+    hass.states.set(
+        "media_player.living_room_roku",
+        "playing",
+        {"friendly_name": "Living Room Roku", "is_volume_muted": False},
+    )
+    hass.states.set("remote.living_room_roku", "on")
+
+    result, status = await api.async_execute_action(
+        hass,
+        entry,
+        {
+            "action": "remote_command",
+            "entity_id": "media_player.living_room_roku",
+            "command": "select",
+        },
+    )
+    assert status == 200
+    assert result["ok"] is True
+    assert hass.services.calls[-1] == (
+        "remote",
+        "send_command",
+        {"entity_id": "remote.living_room_roku", "command": "select"},
+    )
+
+    result, status = await api.async_execute_action(
+        hass,
+        entry,
+        {
+            "action": "remote_command",
+            "entity_id": "media_player.unselected",
+            "command": "home",
+        },
+    )
+    assert status == 403
+    assert result["error"] == "not_allowed"
+
+
+@pytest.mark.asyncio
+async def test_lg_remote_uses_the_webos_button_service(hass, entry):
+    """LG navigation works without a separate remote entity."""
+    entry.options = {"media_player_entities": ["media_player.lg_webos_tv"]}
+    hass.states.set(
+        "media_player.lg_webos_tv",
+        "on",
+        {"friendly_name": "LG webOS TV"},
+    )
+
+    payload = await api.async_dashboard_payload(hass, entry)
+    assert payload["remotes"][0]["kind"] == "lg"
+    assert "select" in payload["remotes"][0]["commands"]
+
+    result, status = await api.async_execute_action(
+        hass,
+        entry,
+        {
+            "action": "remote_command",
+            "entity_id": "media_player.lg_webos_tv",
+            "command": "select",
+        },
+    )
+    assert status == 200
+    assert result["ok"] is True
+    assert hass.services.calls[-1] == (
+        "webostv",
+        "button",
+        {"entity_id": "media_player.lg_webos_tv", "button": "ENTER"},
+    )
 
 
 @pytest.mark.asyncio

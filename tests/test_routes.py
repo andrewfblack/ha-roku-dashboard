@@ -95,7 +95,7 @@ async def test_a_client_can_pair_and_read_the_dashboard(hass, entry):
         assert response.status == 200
         payload = await response.json()
         assert payload["ok"] is True
-        assert payload["schema_version"] == 2
+        assert payload["schema_version"] == 3
 
 
 @pytest.mark.asyncio

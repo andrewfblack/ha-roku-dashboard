@@ -81,14 +81,14 @@ Authorization: Bearer 5F3A...
 ```json
 {
   "ok": true,
-  "schema_version": 2,
+  "schema_version": 3,
   "server_time": "2026-10-21T19:38:37+00:00",
   "dashboard_id": "01JB2X3Y4Z",
   "access_mode": "lan",
   "title": "Family Dashboard",
   "theme": { "accent": "#E18A45", "body_text": "#FFF7EA", "...": "..." },
   "capabilities": {
-    "actions": ["meal_week", "light_toggle", "..."],
+    "actions": ["meal_week", "light_toggle", "remote_command", "..."],
     "stream": true,
     "background": true,
     "theme": true,
@@ -112,7 +112,8 @@ Authorization: Bearer 5F3A...
   "tabs": {"calendar": true, "weather": true, "lights": true, "scenes": true, "climate": true},
   "lights": [{"entity_id": "light.kitchen", "name": "Kitchen", "state": "on"}],
   "scenes": [],
-  "climates": []
+  "climates": [],
+  "remotes": []
 }
 ```
 

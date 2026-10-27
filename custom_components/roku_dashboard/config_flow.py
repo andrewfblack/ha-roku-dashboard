@@ -69,6 +69,8 @@ from .const import (
     CONF_SECURITY_LOCK_ENTITIES,
     CONF_SECURITY_ALARM_ENTITY,
     CONF_SECURITY_FAMILY_ENTITIES,
+    CONF_REMOTE_TAB_ENABLED,
+    CONF_MEDIA_PLAYER_ENTITIES,
     CONF_DASHBOARD_TITLE,
     CONF_INDOOR_HUMIDITY_ENTITY,
     CONF_MEAL_MONDAY,
@@ -114,6 +116,7 @@ SECTION_LABELS = {
     "scenes": "Scenes and scripts",
     "climate": "Climate tab",
     "security": "Security tab",
+    "remote": "iOS Remote tab",
     "appearance": "Appearance",
     "theme": "Theme and colors",
     "panel": "Home Assistant menu",
@@ -129,6 +132,7 @@ MENU_OPTIONS = [
     "scenes",
     "climate",
     "security",
+    "remote",
     "appearance",
     "theme",
     "panel",
@@ -191,6 +195,7 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
     security_locks = EntitySelector(EntitySelectorConfig(domain=["lock"], multiple=True))
     security_alarm = EntitySelector(EntitySelectorConfig(domain=["alarm_control_panel"], multiple=False))
     security_family = EntitySelector(EntitySelectorConfig(domain=["person"], multiple=True))
+    media_players = EntitySelector(EntitySelectorConfig(domain=["media_player"], multiple=True))
     meal = SelectSelector(
         SelectSelectorConfig(
             options=_meal_entity_options(hass),
@@ -299,6 +304,14 @@ def _schema(defaults: dict[str, Any], hass) -> vol.Schema:
             CONF_SECURITY_FAMILY_ENTITIES,
             default=defaults.get(CONF_SECURITY_FAMILY_ENTITIES, vol.UNDEFINED),
         ): security_family,
+        vol.Required(
+            CONF_REMOTE_TAB_ENABLED,
+            default=defaults.get(CONF_REMOTE_TAB_ENABLED, False),
+        ): bool,
+        vol.Optional(
+            CONF_MEDIA_PLAYER_ENTITIES,
+            default=defaults.get(CONF_MEDIA_PLAYER_ENTITIES, vol.UNDEFINED),
+        ): media_players,
         vol.Optional(
             CONF_CALENDAR_ENTITIES,
             default=defaults.get(CONF_CALENDAR_ENTITIES, vol.UNDEFINED),
@@ -375,6 +388,7 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
     security_locks = EntitySelector(EntitySelectorConfig(domain=["lock"], multiple=True))
     security_alarm = EntitySelector(EntitySelectorConfig(domain=["alarm_control_panel"], multiple=False))
     security_family = EntitySelector(EntitySelectorConfig(domain=["person"], multiple=True))
+    media_players = EntitySelector(EntitySelectorConfig(domain=["media_player"], multiple=True))
     meal = SelectSelector(
         SelectSelectorConfig(
             options=_meal_entity_options(hass), mode=SelectSelectorMode.DROPDOWN
@@ -544,6 +558,18 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                     CONF_SECURITY_FAMILY_ENTITIES,
                     default=defaults.get(CONF_SECURITY_FAMILY_ENTITIES, vol.UNDEFINED),
                 ): security_family,
+            }
+        ),
+        "remote": vol.Schema(
+            {
+                vol.Required(
+                    CONF_REMOTE_TAB_ENABLED,
+                    default=defaults.get(CONF_REMOTE_TAB_ENABLED, False),
+                ): bool,
+                vol.Optional(
+                    CONF_MEDIA_PLAYER_ENTITIES,
+                    default=defaults.get(CONF_MEDIA_PLAYER_ENTITIES, vol.UNDEFINED),
+                ): media_players,
             }
         ),
         "climate": vol.Schema(
@@ -750,6 +776,7 @@ class RokuDashboardOptionsFlow(OptionsFlow):
             CONF_SECURITY_ALARM_ENTITY,
             CONF_SECURITY_FAMILY_ENTITIES,
         ],
+        "remote": [CONF_REMOTE_TAB_ENABLED, CONF_MEDIA_PLAYER_ENTITIES],
         "panel": [CONF_PANEL_ENABLED],
         "theme": [
             CONF_THEME_HEADER_TEXT,
@@ -857,6 +884,9 @@ class RokuDashboardOptionsFlow(OptionsFlow):
 
     async def async_step_security(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("security", user_input)
+
+    async def async_step_remote(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_section("remote", user_input)
 
     async def async_step_panel(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("panel", user_input)

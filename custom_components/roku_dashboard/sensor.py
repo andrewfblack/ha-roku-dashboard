@@ -42,6 +42,8 @@ from .const import (
     CONF_SECURITY_LOCK_ENTITIES,
     CONF_SECURITY_ALARM_ENTITY,
     CONF_SECURITY_FAMILY_ENTITIES,
+    CONF_REMOTE_TAB_ENABLED,
+    CONF_MEDIA_PLAYER_ENTITIES,
     CONF_PAIRING_CODE,
     CONF_WEATHER_TAB_ENABLED,
     CONF_FORECAST_TYPE,
@@ -136,6 +138,8 @@ class RokuDashboardConfigSensor(Entity):
             "security_lock_entities": options.get(CONF_SECURITY_LOCK_ENTITIES, []),
             "security_alarm_entity": options.get(CONF_SECURITY_ALARM_ENTITY, ""),
             "security_family_entities": options.get(CONF_SECURITY_FAMILY_ENTITIES, []),
+            "remote_tab_enabled": options.get(CONF_REMOTE_TAB_ENABLED, False),
+            "media_player_entities": options.get(CONF_MEDIA_PLAYER_ENTITIES, []),
             "meal_entity": meal,
             "weekly_meals": [
                 options.get(CONF_MEAL_MONDAY, ""),
