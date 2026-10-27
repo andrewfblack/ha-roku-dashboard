@@ -161,28 +161,21 @@ async def test_payload_builds_an_ios_remote(hass, entry):
 
 
 @pytest.mark.asyncio
-async def test_payload_applies_remote_and_tab_order(hass, entry):
-    """Home Assistant options control both visible ordering lists."""
+async def test_payload_includes_configured_remotes_without_order_preferences(hass, entry):
+    """The server sends selected remotes; iOS orders them locally."""
     entry.options = {
         "media_player_entities": ["media_player.den", "media_player.bedroom"],
-        "remote_order": ["media_player.bedroom", "media_player.den"],
-        "tab_order": ["home", "remote", "lights", "calendar"],
     }
     hass.states.set("media_player.den", "off", {"friendly_name": "Den"})
     hass.states.set("media_player.bedroom", "off", {"friendly_name": "Bedroom"})
 
     payload = await api.async_dashboard_payload(hass, entry)
 
-    assert [item["entity_id"] for item in payload["remotes"]] == [
-        "media_player.bedroom",
+    assert {item["entity_id"] for item in payload["remotes"]} == {
         "media_player.den",
-    ]
-    assert payload["tabs"]["order"][:4] == [
-        "home",
-        "remote",
-        "lights",
-        "calendar",
-    ]
+        "media_player.bedroom",
+    }
+    assert "order" not in payload["tabs"]
 
 
 @pytest.mark.asyncio

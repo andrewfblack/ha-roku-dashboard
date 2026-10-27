@@ -53,8 +53,6 @@ CONF_SECURITY_ALARM_ENTITY = "security_alarm_entity"
 CONF_SECURITY_FAMILY_ENTITIES = "security_family_entities"
 CONF_REMOTE_TAB_ENABLED = "remote_tab_enabled"
 CONF_MEDIA_PLAYER_ENTITIES = "media_player_entities"
-CONF_REMOTE_ORDER = "remote_order"
-CONF_TAB_ORDER = "tab_order"
 CONF_US_HOLIDAYS_ENABLED = "us_holidays_enabled"
 CONF_US_OBSERVANCES_ENABLED = "us_observances_enabled"
 CONF_BACKGROUND_FILE = "background_file"
@@ -182,14 +180,3 @@ STORAGE_KEY = f"{DOMAIN}_meal_plan"
 STORAGE_VERSION = 1
 
 CONFIG_SENSOR = f"sensor.{DOMAIN}_config"
-
-DEFAULT_TAB_ORDER = [
-    "home",
-    "calendar",
-    "weather",
-    "lights",
-    "scenes",
-    "climate",
-    "security",
-    "remote",
-]

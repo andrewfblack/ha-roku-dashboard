@@ -71,8 +71,6 @@ from .const import (
     CONF_SECURITY_FAMILY_ENTITIES,
     CONF_REMOTE_TAB_ENABLED,
     CONF_MEDIA_PLAYER_ENTITIES,
-    CONF_REMOTE_ORDER,
-    CONF_TAB_ORDER,
     CONF_DASHBOARD_TITLE,
     CONF_INDOOR_HUMIDITY_ENTITY,
     CONF_MEAL_MONDAY,
@@ -100,7 +98,6 @@ from .const import (
     CONF_THEME_BACKGROUND_OVERLAY,
     CREATE_NEW_MEAL_HELPER,
     DOMAIN,
-    DEFAULT_TAB_ORDER,
     LAYOUTS,
     FORECAST_TYPES,
     MEAL_HELPER_ENTITY,
@@ -122,7 +119,6 @@ SECTION_LABELS = {
     "climate": "Climate tab",
     "security": "Security tab",
     "remote": "iOS Remote tab",
-    "navigation": "Tab order",
     "appearance": "Appearance",
     "theme": "Theme and colors",
     "panel": "Home Assistant menu",
@@ -139,7 +135,6 @@ MENU_OPTIONS = [
     "climate",
     "security",
     "remote",
-    "navigation",
     "appearance",
     "theme",
     "panel",
@@ -396,48 +391,6 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
     security_alarm = EntitySelector(EntitySelectorConfig(domain=["alarm_control_panel"], multiple=False))
     security_family = EntitySelector(EntitySelectorConfig(domain=["person"], multiple=True))
     media_players = EntitySelector(EntitySelectorConfig(domain=["media_player"], multiple=True))
-    saved_tab_order = [
-        item for item in defaults.get(CONF_TAB_ORDER, DEFAULT_TAB_ORDER)
-        if item in DEFAULT_TAB_ORDER
-    ]
-    tab_order_values = saved_tab_order + [
-        item for item in DEFAULT_TAB_ORDER if item not in saved_tab_order
-    ]
-    tab_order = SelectSelector(
-        SelectSelectorConfig(
-            options=[
-                {"value": item, "label": item.replace("_", " ").title()}
-                for item in tab_order_values
-            ],
-            multiple=True,
-            mode=SelectSelectorMode.DROPDOWN,
-        )
-    )
-    configured_players = list(defaults.get(CONF_MEDIA_PLAYER_ENTITIES, []) or [])
-    saved_remote_order = [
-        item for item in defaults.get(CONF_REMOTE_ORDER, configured_players)
-        if item in configured_players
-    ]
-    remote_order_values = saved_remote_order + [
-        item for item in configured_players if item not in saved_remote_order
-    ]
-    remote_order = SelectSelector(
-        SelectSelectorConfig(
-            options=[
-                {
-                    "value": entity_id,
-                    "label": (
-                        hass.states.get(entity_id).attributes.get("friendly_name", entity_id)
-                        if hass.states.get(entity_id) is not None
-                        else entity_id
-                    ),
-                }
-                for entity_id in remote_order_values
-            ],
-            multiple=True,
-            mode=SelectSelectorMode.DROPDOWN,
-        )
-    )
     meal = SelectSelector(
         SelectSelectorConfig(
             options=_meal_entity_options(hass), mode=SelectSelectorMode.DROPDOWN
@@ -619,18 +572,6 @@ def _section_schemas(defaults: dict[str, Any], hass) -> dict[str, vol.Schema]:
                     CONF_MEDIA_PLAYER_ENTITIES,
                     default=defaults.get(CONF_MEDIA_PLAYER_ENTITIES, vol.UNDEFINED),
                 ): media_players,
-                vol.Optional(
-                    CONF_REMOTE_ORDER,
-                    default=defaults.get(CONF_REMOTE_ORDER, remote_order_values),
-                ): remote_order,
-            }
-        ),
-        "navigation": vol.Schema(
-            {
-                vol.Required(
-                    CONF_TAB_ORDER,
-                    default=tab_order_values,
-                ): tab_order,
             }
         ),
         "climate": vol.Schema(
@@ -851,8 +792,7 @@ class RokuDashboardOptionsFlow(OptionsFlow):
             CONF_SECURITY_ALARM_ENTITY,
             CONF_SECURITY_FAMILY_ENTITIES,
         ],
-        "remote": [CONF_REMOTE_TAB_ENABLED, CONF_MEDIA_PLAYER_ENTITIES, CONF_REMOTE_ORDER],
-        "navigation": [CONF_TAB_ORDER],
+        "remote": [CONF_REMOTE_TAB_ENABLED, CONF_MEDIA_PLAYER_ENTITIES],
         "panel": [CONF_PANEL_ENABLED],
         "theme": [
             CONF_THEME_HEADER_TEXT,
@@ -965,9 +905,6 @@ class RokuDashboardOptionsFlow(OptionsFlow):
 
     async def async_step_remote(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("remote", user_input)
-
-    async def async_step_navigation(self, user_input=None) -> ConfigFlowResult:
-        return await self._async_section("navigation", user_input)
 
     async def async_step_panel(self, user_input=None) -> ConfigFlowResult:
         return await self._async_section("panel", user_input)

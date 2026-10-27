@@ -90,6 +90,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if entry.title != "Family Dashboard":
         hass.config_entries.async_update_entry(entry, title="Family Dashboard")
 
+    # Ordering is now a per-device preference in the iOS app, not HA config.
+    options = dict(entry.options)
+    obsolete_order_keys = ("tab_order", "remote_order")
+    if any(key in options for key in obsolete_order_keys):
+        for key in obsolete_order_keys:
+            options.pop(key, None)
+        hass.config_entries.async_update_entry(entry, options=options)
+
     store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
     stored_value: str = (await store.async_load()) or ""
 
