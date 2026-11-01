@@ -147,6 +147,7 @@ async def test_payload_builds_an_ios_remote(hass, entry):
             "media_title": "Family Movie",
             "volume_level": 0.35,
             "source_list": ["Home", "Netflix"],
+            "supported_features": 19_849,
         },
     )
     hass.states.set("remote.living_room_roku", "on")
@@ -156,8 +157,107 @@ async def test_payload_builds_an_ios_remote(hass, entry):
     assert payload["tabs"]["remote"] is True
     assert payload["remotes"][0]["kind"] == "roku"
     assert payload["remotes"][0]["remote_entity_id"] == "remote.living_room_roku"
+    assert payload["remotes"][0]["room"] == "Other"
     assert "replay" in payload["remotes"][0]["commands"]
     assert "options" in payload["remotes"][0]["commands"]
+    assert set(payload["remotes"][0]["capabilities"]) == {
+        "turn_on",
+        "turn_off",
+        "volume_step",
+        "volume_mute",
+        "play_pause",
+        "select_source",
+    }
+
+
+@pytest.mark.asyncio
+async def test_apple_tv_remote_matches_registry_device_with_different_entity_id(
+    hass, entry, monkeypatch
+):
+    """Apple TV remote entity ids need not match the media-player entity id."""
+    class RegistryEntry:
+        def __init__(self, entity_id, platform, device_id, config_entry_id):
+            self.entity_id = entity_id
+            self.platform = platform
+            self.device_id = device_id
+            self.config_entry_id = config_entry_id
+
+    class Registry:
+        entities = {
+            "player": RegistryEntry("media_player.family_room", "apple_tv", "player_device", "apple_entry"),
+            "remote": RegistryEntry("remote.family_room_remote", "apple_tv", "remote_device", "apple_entry"),
+        }
+
+        def async_get(self, entity_id):
+            return next(
+                (item for item in self.entities.values() if item.entity_id == entity_id),
+                None,
+            )
+
+    monkeypatch.setattr(api.er, "async_get", lambda _hass: Registry())
+    entry.options = {"media_player_entities": ["media_player.family_room"]}
+    hass.states.set("media_player.family_room", "playing", {"friendly_name": "Family Room"})
+    hass.states.set("remote.family_room_remote", "on")
+
+    payload = await api.async_dashboard_payload(hass, entry)
+
+    remote = payload["remotes"][0]
+    assert remote["kind"] == "apple_tv"
+    assert remote["remote_entity_id"] == "remote.family_room_remote"
+    assert "up" in remote["commands"]
+    assert "menu" in remote["commands"]
+
+    result, status = await api.async_execute_action(
+        hass,
+        entry,
+        {
+            "action": "remote_command",
+            "entity_id": "media_player.family_room",
+            "command": "right",
+        },
+    )
+    assert status == 200
+    assert result["ok"] is True
+    assert hass.services.calls[-1] == (
+        "remote",
+        "send_command",
+        {"entity_id": "remote.family_room_remote", "command": "right"},
+    )
+
+
+@pytest.mark.asyncio
+async def test_remote_room_and_device_type_can_be_configured(hass, entry):
+    """Room and layout type overrides are included in the iOS payload."""
+    entry.options = {
+        "media_player_entities": ["media_player.screen"],
+        "remote_device_config": {
+            "media_player.screen": {"room": "Den", "kind": "apple_tv"}
+        },
+    }
+    hass.states.set("media_player.screen", "playing", {"friendly_name": "Streamer"})
+    hass.states.set("remote.screen", "on")
+
+    payload = await api.async_dashboard_payload(hass, entry)
+
+    assert payload["remotes"][0]["room"] == "Den"
+    assert payload["remotes"][0]["kind"] == "apple_tv"
+
+    result, status = await api.async_execute_action(
+        hass,
+        entry,
+        {
+            "action": "remote_command",
+            "entity_id": "media_player.screen",
+            "command": "back",
+        },
+    )
+    assert status == 200
+    assert result["ok"] is True
+    assert hass.services.calls[-1] == (
+        "remote",
+        "send_command",
+        {"entity_id": "remote.screen", "command": "menu"},
+    )
 
 
 @pytest.mark.asyncio
@@ -185,7 +285,11 @@ async def test_remote_actions_are_allowlisted_and_translated(hass, entry):
     hass.states.set(
         "media_player.living_room_roku",
         "playing",
-        {"friendly_name": "Living Room Roku", "is_volume_muted": False},
+        {
+            "friendly_name": "Living Room Roku",
+            "is_volume_muted": False,
+            "supported_features": 1_025,
+        },
     )
     hass.states.set("remote.living_room_roku", "on")
 
@@ -217,6 +321,56 @@ async def test_remote_actions_are_allowlisted_and_translated(hass, entry):
     )
     assert status == 403
     assert result["error"] == "not_allowed"
+
+
+@pytest.mark.asyncio
+async def test_remote_rejects_unsupported_media_controls(hass, entry):
+    """Configured players cannot receive unsupported media-player services."""
+    entry.options = {"media_player_entities": ["media_player.read_only"]}
+    hass.states.set("media_player.read_only", "playing", {"supported_features": 0})
+
+    result, status = await api.async_execute_action(
+        hass,
+        entry,
+        {"action": "media_play_pause", "entity_id": "media_player.read_only"},
+    )
+
+    assert status == 400
+    assert result["error"] == "unsupported_feature"
+    assert not hass.services.calls
+
+
+@pytest.mark.asyncio
+async def test_power_control_checks_the_player_state_and_features(hass, entry):
+    """Power only invokes a supported direction for the current state."""
+    entry.options = {"media_player_entities": ["media_player.power_only"]}
+    hass.states.set(
+        "media_player.power_only",
+        "off",
+        {"supported_features": 128},  # turn_on only
+    )
+
+    result, status = await api.async_execute_action(
+        hass,
+        entry,
+        {"action": "media_power", "entity_id": "media_player.power_only"},
+    )
+    assert status == 200
+    assert result["ok"] is True
+    assert hass.services.calls[-1][:2] == ("media_player", "turn_on")
+
+    hass.states.set(
+        "media_player.power_only",
+        "on",
+        {"supported_features": 128},  # turn_off is not supported
+    )
+    result, status = await api.async_execute_action(
+        hass,
+        entry,
+        {"action": "media_power", "entity_id": "media_player.power_only"},
+    )
+    assert status == 400
+    assert result["error"] == "unsupported_feature"
 
 
 @pytest.mark.asyncio
@@ -274,6 +428,53 @@ async def test_roku_transport_buttons_use_remote_commands(hass, entry):
             "remote",
             "send_command",
             {"entity_id": "remote.den_roku", "command": command},
+        )
+
+
+@pytest.mark.asyncio
+async def test_apple_tv_commands_use_home_assistant_command_names(hass, entry, monkeypatch):
+    """Apple TV semantic keys map to the commands expected by its integration."""
+    class RegistryEntry:
+        entity_id = "remote.family_room"
+        platform = "apple_tv"
+        device_id = "device1"
+        config_entry_id = "apple_entry"
+
+    class Registry:
+        entities = {"remote": RegistryEntry()}
+
+        def async_get(self, entity_id):
+            return None
+
+    monkeypatch.setattr(api.er, "async_get", lambda _hass: Registry())
+    entry.options = {"media_player_entities": ["media_player.family_room"]}
+    hass.states.set("media_player.family_room", "playing", {"friendly_name": "Apple TV"})
+    hass.states.set("remote.family_room", "on")
+
+    for semantic, expected in (
+        ("up", "up"),
+        ("select", "select"),
+        ("back", "menu"),
+        ("home", "home"),
+        ("menu", "top_menu"),
+        ("reverse", "skip_backward"),
+        ("forward", "skip_forward"),
+    ):
+        result, status = await api.async_execute_action(
+            hass,
+            entry,
+            {
+                "action": "remote_command",
+                "entity_id": "media_player.family_room",
+                "command": semantic,
+            },
+        )
+        assert status == 200
+        assert result["ok"] is True
+        assert hass.services.calls[-1] == (
+            "remote",
+            "send_command",
+            {"entity_id": "remote.family_room", "command": expected},
         )
 
 

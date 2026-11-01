@@ -947,3 +947,8 @@ components:
           type: array
           items:
             type: string
+        capabilities:
+          type: array
+          description: The media-player actions supported by this entity.
+          items:
+            type: string

@@ -53,6 +53,14 @@ CONF_SECURITY_ALARM_ENTITY = "security_alarm_entity"
 CONF_SECURITY_FAMILY_ENTITIES = "security_family_entities"
 CONF_REMOTE_TAB_ENABLED = "remote_tab_enabled"
 CONF_MEDIA_PLAYER_ENTITIES = "media_player_entities"
+CONF_REMOTE_DEVICE_CONFIG = "remote_device_config"
+REMOTE_DEVICE_TYPES = {
+    "auto": "Automatic",
+    "roku": "Roku",
+    "apple_tv": "Apple TV",
+    "lg": "LG webOS TV",
+    "generic": "Generic remote",
+}
 CONF_US_HOLIDAYS_ENABLED = "us_holidays_enabled"
 CONF_US_OBSERVANCES_ENABLED = "us_observances_enabled"
 CONF_BACKGROUND_FILE = "background_file"

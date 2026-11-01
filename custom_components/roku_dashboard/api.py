@@ -69,6 +69,7 @@ from .const import (
     CONF_SECURITY_FAMILY_ENTITIES,
     CONF_REMOTE_TAB_ENABLED,
     CONF_MEDIA_PLAYER_ENTITIES,
+    CONF_REMOTE_DEVICE_CONFIG,
     CONF_US_HOLIDAYS_ENABLED,
     CONF_US_OBSERVANCES_ENABLED,
     CONF_THEME_HEADER_TEXT,
@@ -92,9 +93,21 @@ from .const import (
     PAIRING_POLL_INTERVAL,
     PAYLOAD_SCHEMA_VERSION,
     THEME_DEFAULTS,
+    REMOTE_DEVICE_TYPES,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Home Assistant media_player supported_features bit flags.
+_MEDIA_PLAYER_FEATURES = {
+    "pause": 1,
+    "volume_mute": 8,
+    "turn_on": 128,
+    "turn_off": 256,
+    "volume_step": 1024,
+    "select_source": 2048,
+    "play": 16384,
+}
 
 
 def _theme_color(options: dict[str, Any], key: str) -> str:
@@ -695,22 +708,49 @@ def _remote_kind(entity_id: str, name: str, platform: str = "") -> str:
     return "generic"
 
 
-def _matching_remote(hass, media_player_id: str) -> tuple[str, str]:
+def _matching_remote(
+    hass, media_player_id: str, name: str = ""
+) -> tuple[str, str]:
     """Return the remote entity and integration platform for a media player."""
     registry = er.async_get(hass)
     player_entry = registry.async_get(media_player_id)
     platform = str(getattr(player_entry, "platform", "") or "")
     device_id = getattr(player_entry, "device_id", None)
+    config_entry_id = getattr(player_entry, "config_entry_id", None)
     entities = getattr(registry, "entities", {})
     values = entities.values() if hasattr(entities, "values") else []
     if device_id:
         for entry in values:
+            entry_entity_id = str(getattr(entry, "entity_id", ""))
+            # EntityRegistryEntry's public surface does not consistently expose
+            # a `domain` property across HA versions; derive it from its id.
+            entry_domain = getattr(entry, "domain", None) or (
+                entry_entity_id.split(".", 1)[0] if "." in entry_entity_id else ""
+            )
             if (
-                getattr(entry, "domain", "") == "remote"
+                entry_domain == "remote"
                 and getattr(entry, "device_id", None) == device_id
-                and hass.states.get(str(entry.entity_id)) is not None
+                and entry_entity_id
+                and hass.states.get(entry_entity_id) is not None
             ):
-                return str(entry.entity_id), platform or str(getattr(entry, "platform", "") or "")
+                return entry_entity_id, platform or str(getattr(entry, "platform", "") or "")
+
+    # Apple TV integrations can register the media player and remote in the
+    # same config entry without assigning both entities the same device id.
+    if config_entry_id and _remote_kind(media_player_id, name, platform) == "apple_tv":
+        for entry in values:
+            entry_entity_id = str(getattr(entry, "entity_id", ""))
+            entry_domain = getattr(entry, "domain", None) or (
+                entry_entity_id.split(".", 1)[0] if "." in entry_entity_id else ""
+            )
+            if (
+                entry_domain == "remote"
+                and getattr(entry, "platform", "") == "apple_tv"
+                and getattr(entry, "config_entry_id", None) == config_entry_id
+                and entry_entity_id
+                and hass.states.get(entry_entity_id) is not None
+            ):
+                return entry_entity_id, platform
 
     # This convention covers many Roku, Apple TV and webOS installations even
     # when an entity registry entry is unavailable (for example during tests).
@@ -737,7 +777,29 @@ def _remote_commands(kind: str, has_remote: bool) -> list[str]:
     return commands
 
 
-def _remote_cards(hass, configured: Any) -> list[dict[str, Any]]:
+def _media_player_capabilities(attributes: dict[str, Any]) -> list[str]:
+    """Return only the media controls supported by this player."""
+    try:
+        features = int(attributes.get("supported_features", 0) or 0)
+    except (TypeError, ValueError):
+        features = 0
+
+    capabilities = [
+        name
+        for name in ("turn_on", "turn_off", "volume_step", "volume_mute")
+        if features & _MEDIA_PLAYER_FEATURES[name]
+    ]
+    # Home Assistant's play/pause service requires both operations.
+    if all(features & _MEDIA_PLAYER_FEATURES[name] for name in ("play", "pause")):
+        capabilities.append("play_pause")
+    if features & _MEDIA_PLAYER_FEATURES["select_source"]:
+        capabilities.append("select_source")
+    return capabilities
+
+
+def _remote_cards(
+    hass, configured: Any, options: dict[str, Any]
+) -> list[dict[str, Any]]:
     """Build iOS remote cards for the configured media players."""
     cards: list[dict[str, Any]] = []
     for entity_id in _as_list(configured):
@@ -746,14 +808,18 @@ def _remote_cards(hass, configured: Any) -> list[dict[str, Any]]:
             continue
         attrs = state.attributes
         name = str(attrs.get("friendly_name", entity_id))
-        remote_id, platform = _matching_remote(hass, entity_id)
+        remote_id, platform = _matching_remote(hass, entity_id, name)
+        settings = _remote_device_settings(options, entity_id)
         kind = _remote_kind(entity_id, name, platform)
+        if settings["kind"] != "auto":
+            kind = settings["kind"]
         cards.append(
             {
                 "entity_id": entity_id,
                 "remote_entity_id": remote_id or None,
                 "name": name,
                 "kind": kind,
+                "room": settings["room"],
                 "state": state.state,
                 "volume_level": attrs.get("volume_level"),
                 "is_volume_muted": bool(attrs.get("is_volume_muted", False)),
@@ -762,9 +828,23 @@ def _remote_cards(hass, configured: Any) -> list[dict[str, Any]]:
                 "source": attrs.get("source") or attrs.get("app_name"),
                 "source_list": attrs.get("source_list") or [],
                 "commands": _remote_commands(kind, bool(remote_id)),
+                "capabilities": _media_player_capabilities(attrs),
             }
         )
     return cards
+
+
+def _remote_device_settings(options: dict[str, Any], entity_id: str) -> dict[str, str]:
+    """Return the configured room and optional type override for one player."""
+    configs = options.get(CONF_REMOTE_DEVICE_CONFIG, {})
+    config = configs.get(entity_id, {}) if isinstance(configs, dict) else {}
+    if not isinstance(config, dict):
+        config = {}
+    kind = str(config.get("kind", "auto"))
+    if kind not in REMOTE_DEVICE_TYPES:
+        kind = "auto"
+    room = str(config.get("room", "Other") or "Other").strip()[:40] or "Other"
+    return {"room": room, "kind": kind}
 
 
 def _security_data(hass, options: dict[str, Any]) -> dict[str, Any]:
@@ -1192,7 +1272,9 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
     scenes = _entity_cards(hass, options.get(CONF_SCENE_ENTITIES, []))
     climates = _climate_cards(hass, options.get(CONF_CLIMATE_ENTITIES, []))
     security = _security_data(hass, options)
-    remotes = _remote_cards(hass, options.get(CONF_MEDIA_PLAYER_ENTITIES, []))
+    remotes = _remote_cards(
+        hass, options.get(CONF_MEDIA_PLAYER_ENTITIES, []), options
+    )
     return {
         "ok": True,
         "schema_version": PAYLOAD_SCHEMA_VERSION,
@@ -1331,32 +1413,52 @@ async def async_execute_action(
         if state is None:
             return {"error": "not_found"}, 404
         if action == "media_power":
-            domain = "media_player"
-            service = "turn_on" if state.state in ("off", "standby", "unavailable") else "turn_off"
+            state_value = state.state.lower()
+            feature = "turn_on" if state_value in ("off", "standby") else "turn_off"
+            capabilities = _media_player_capabilities(state.attributes)
+            if state_value in ("unknown", "unavailable") or not (
+                feature in capabilities
+            ):
+                return {"error": "unsupported_feature"}, 400
+            domain, service = "media_player", feature
         elif action == "media_play_pause":
+            if "play_pause" not in _media_player_capabilities(state.attributes):
+                return {"error": "unsupported_feature"}, 400
             domain, service = "media_player", "media_play_pause"
         elif action == "media_volume":
             command = str(body.get("command", ""))
             if command == "up":
+                if "volume_step" not in _media_player_capabilities(state.attributes):
+                    return {"error": "unsupported_feature"}, 400
                 domain, service = "media_player", "volume_up"
             elif command == "down":
+                if "volume_step" not in _media_player_capabilities(state.attributes):
+                    return {"error": "unsupported_feature"}, 400
                 domain, service = "media_player", "volume_down"
             elif command == "mute":
+                if "volume_mute" not in _media_player_capabilities(state.attributes):
+                    return {"error": "unsupported_feature"}, 400
                 domain, service = "media_player", "volume_mute"
                 data["is_volume_muted"] = not bool(state.attributes.get("is_volume_muted", False))
             else:
                 return {"error": "invalid_command"}, 400
         elif action == "media_source":
             source = str(body.get("value", ""))
-            if source not in (state.attributes.get("source_list") or []):
+            if (
+                "select_source" not in _media_player_capabilities(state.attributes)
+                or source not in (state.attributes.get("source_list") or [])
+            ):
                 return {"error": "invalid_source"}, 400
             domain, service = "media_player", "select_source"
             data["source"] = source
         else:
             semantic = str(body.get("command", ""))
-            remote_id, platform = _matching_remote(hass, entity_id)
             name = str(state.attributes.get("friendly_name", entity_id))
-            kind = _remote_kind(entity_id, name, platform)
+            remote_id, platform = _matching_remote(hass, entity_id, name)
+            settings = _remote_device_settings(options, entity_id)
+            kind = settings["kind"]
+            if kind == "auto":
+                kind = _remote_kind(entity_id, name, platform)
             if semantic not in _remote_commands(kind, bool(remote_id)):
                 return {"error": "invalid_command"}, 400
             command_maps = {
