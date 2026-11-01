@@ -69,7 +69,6 @@ from .const import (
     CONF_SECURITY_FAMILY_ENTITIES,
     CONF_REMOTE_TAB_ENABLED,
     CONF_MEDIA_PLAYER_ENTITIES,
-    CONF_REMOTE_DEVICE_CONFIG,
     CONF_US_HOLIDAYS_ENABLED,
     CONF_US_OBSERVANCES_ENABLED,
     CONF_THEME_HEADER_TEXT,
@@ -93,7 +92,6 @@ from .const import (
     PAIRING_POLL_INTERVAL,
     PAYLOAD_SCHEMA_VERSION,
     THEME_DEFAULTS,
-    REMOTE_DEVICE_TYPES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -797,9 +795,7 @@ def _media_player_capabilities(attributes: dict[str, Any]) -> list[str]:
     return capabilities
 
 
-def _remote_cards(
-    hass, configured: Any, options: dict[str, Any]
-) -> list[dict[str, Any]]:
+def _remote_cards(hass, configured: Any) -> list[dict[str, Any]]:
     """Build iOS remote cards for the configured media players."""
     cards: list[dict[str, Any]] = []
     for entity_id in _as_list(configured):
@@ -809,17 +805,13 @@ def _remote_cards(
         attrs = state.attributes
         name = str(attrs.get("friendly_name", entity_id))
         remote_id, platform = _matching_remote(hass, entity_id, name)
-        settings = _remote_device_settings(options, entity_id)
         kind = _remote_kind(entity_id, name, platform)
-        if settings["kind"] != "auto":
-            kind = settings["kind"]
         cards.append(
             {
                 "entity_id": entity_id,
                 "remote_entity_id": remote_id or None,
                 "name": name,
                 "kind": kind,
-                "room": settings["room"],
                 "state": state.state,
                 "volume_level": attrs.get("volume_level"),
                 "is_volume_muted": bool(attrs.get("is_volume_muted", False)),
@@ -832,19 +824,6 @@ def _remote_cards(
             }
         )
     return cards
-
-
-def _remote_device_settings(options: dict[str, Any], entity_id: str) -> dict[str, str]:
-    """Return the configured room and optional type override for one player."""
-    configs = options.get(CONF_REMOTE_DEVICE_CONFIG, {})
-    config = configs.get(entity_id, {}) if isinstance(configs, dict) else {}
-    if not isinstance(config, dict):
-        config = {}
-    kind = str(config.get("kind", "auto"))
-    if kind not in REMOTE_DEVICE_TYPES:
-        kind = "auto"
-    room = str(config.get("room", "Other") or "Other").strip()[:40] or "Other"
-    return {"room": room, "kind": kind}
 
 
 def _security_data(hass, options: dict[str, Any]) -> dict[str, Any]:
@@ -1272,9 +1251,7 @@ async def async_dashboard_payload(hass, entry) -> dict[str, Any]:
     scenes = _entity_cards(hass, options.get(CONF_SCENE_ENTITIES, []))
     climates = _climate_cards(hass, options.get(CONF_CLIMATE_ENTITIES, []))
     security = _security_data(hass, options)
-    remotes = _remote_cards(
-        hass, options.get(CONF_MEDIA_PLAYER_ENTITIES, []), options
-    )
+    remotes = _remote_cards(hass, options.get(CONF_MEDIA_PLAYER_ENTITIES, []))
     return {
         "ok": True,
         "schema_version": PAYLOAD_SCHEMA_VERSION,
@@ -1455,10 +1432,10 @@ async def async_execute_action(
             semantic = str(body.get("command", ""))
             name = str(state.attributes.get("friendly_name", entity_id))
             remote_id, platform = _matching_remote(hass, entity_id, name)
-            settings = _remote_device_settings(options, entity_id)
-            kind = settings["kind"]
-            if kind == "auto":
-                kind = _remote_kind(entity_id, name, platform)
+            kind = _remote_kind(entity_id, name, platform)
+            device_type = str(body.get("device_type", "auto"))
+            if device_type in {"roku", "apple_tv", "lg", "generic"}:
+                kind = device_type
             if semantic not in _remote_commands(kind, bool(remote_id)):
                 return {"error": "invalid_command"}, 400
             command_maps = {

@@ -518,6 +518,10 @@ components:
         command:
           type: string
           description: A semantic volume, security, or remote command.
+        device_type:
+          type: string
+          enum: [roku, apple_tv, lg, generic]
+          description: Optional iOS-selected remote command layout for this media player.
       required: [action]
 
     ActionResult:

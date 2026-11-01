@@ -38,15 +38,12 @@ from .const import (
     CONF_LEGACY_TOKEN_REVOKED,
     CONF_LIGHT_ENTITIES,
     CONF_LIGHTS_TAB_ENABLED,
-    CONF_MEDIA_PLAYER_ENTITIES,
     CONF_MEAL_ENTITY,
     CONF_OUTDOOR_ENTITY,
     CONF_SCENE_ENTITIES,
     CONF_SCENES_TAB_ENABLED,
     CONF_WEATHER_TAB_ENABLED,
     CONF_REMOTE_TAB_ENABLED,
-    CONF_REMOTE_DEVICE_CONFIG,
-    REMOTE_DEVICE_TYPES,
     CONF_THEME_HEADER_TEXT,
     CONF_THEME_ITEM_HEADER_TEXT,
     CONF_THEME_BODY_TEXT,
@@ -161,8 +158,6 @@ def _public_options(options: dict[str, Any]) -> dict[str, Any]:
         CONF_LIGHT_ENTITIES: options.get(CONF_LIGHT_ENTITIES, []),
         CONF_SCENE_ENTITIES: options.get(CONF_SCENE_ENTITIES, []),
         CONF_CLIMATE_ENTITIES: options.get(CONF_CLIMATE_ENTITIES, []),
-        CONF_MEDIA_PLAYER_ENTITIES: options.get(CONF_MEDIA_PLAYER_ENTITIES, []),
-        CONF_REMOTE_DEVICE_CONFIG: options.get(CONF_REMOTE_DEVICE_CONFIG, {}),
         **{
             key: _rgb_hex(options.get(key), default)
             for key, default in THEME_DEFAULTS.items()
@@ -220,30 +215,6 @@ def _merge_options(
     for key in _TOGGLE_OPTIONS:
         default = key != CONF_REMOTE_TAB_ENABLED
         options[key] = bool(incoming.get(key, options.get(key, default)))
-
-    media_players = _clean_entities(
-        hass,
-        options.get(CONF_MEDIA_PLAYER_ENTITIES, []),
-        ("media_player",),
-    )
-    raw_remote_config = incoming.get(
-        CONF_REMOTE_DEVICE_CONFIG,
-        options.get(CONF_REMOTE_DEVICE_CONFIG, {}),
-    )
-    if not isinstance(raw_remote_config, dict):
-        raw_remote_config = {}
-    remote_config = {}
-    for entity_id in media_players:
-        raw_item = raw_remote_config.get(entity_id, {})
-        if not isinstance(raw_item, dict):
-            raw_item = {}
-        room = str(raw_item.get("room", "Other") or "Other").strip()[:40] or "Other"
-        device_type = str(raw_item.get("kind", "auto"))
-        if device_type not in REMOTE_DEVICE_TYPES:
-            device_type = "auto"
-        remote_config[entity_id] = {"room": room, "kind": device_type}
-    options[CONF_MEDIA_PLAYER_ENTITIES] = media_players
-    options[CONF_REMOTE_DEVICE_CONFIG] = remote_config
 
     options[CONF_INDOOR_ENTITY] = _clean_entity(
         hass, incoming.get(CONF_INDOOR_ENTITY, options.get(CONF_INDOOR_ENTITY)),

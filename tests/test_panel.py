@@ -99,25 +99,3 @@ async def test_an_unknown_action_is_refused(hass):
 
     response = await view.post(FakeRequest(body={"action": "explode"}))
     assert response.status == 400
-
-
-def test_panel_saves_and_validates_remote_room_and_type(hass, entry):
-    hass.states.set("media_player.living_room", "off", {"friendly_name": "Living Room TV"})
-    current = {
-        "media_player_entities": ["media_player.living_room"],
-    }
-
-    options = panel._merge_options(
-        hass,
-        current,
-        {
-            "dashboard_title": "Family Dashboard",
-            "remote_device_config": {
-                "media_player.living_room": {"room": "  Den  ", "kind": "apple_tv"}
-            },
-        },
-    )
-
-    assert options["remote_device_config"] == {
-        "media_player.living_room": {"room": "Den", "kind": "apple_tv"}
-    }

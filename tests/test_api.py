@@ -157,7 +157,7 @@ async def test_payload_builds_an_ios_remote(hass, entry):
     assert payload["tabs"]["remote"] is True
     assert payload["remotes"][0]["kind"] == "roku"
     assert payload["remotes"][0]["remote_entity_id"] == "remote.living_room_roku"
-    assert payload["remotes"][0]["room"] == "Other"
+    assert "room" not in payload["remotes"][0]
     assert "replay" in payload["remotes"][0]["commands"]
     assert "options" in payload["remotes"][0]["commands"]
     assert set(payload["remotes"][0]["capabilities"]) == {
@@ -226,21 +226,16 @@ async def test_apple_tv_remote_matches_registry_device_with_different_entity_id(
 
 
 @pytest.mark.asyncio
-async def test_remote_room_and_device_type_can_be_configured(hass, entry):
-    """Room and layout type overrides are included in the iOS payload."""
-    entry.options = {
-        "media_player_entities": ["media_player.screen"],
-        "remote_device_config": {
-            "media_player.screen": {"room": "Den", "kind": "apple_tv"}
-        },
-    }
+async def test_remote_device_type_override_is_allowlisted(hass, entry):
+    """An iOS-selected type controls translation for an allowlisted player."""
+    entry.options = {"media_player_entities": ["media_player.screen"]}
     hass.states.set("media_player.screen", "playing", {"friendly_name": "Streamer"})
     hass.states.set("remote.screen", "on")
 
     payload = await api.async_dashboard_payload(hass, entry)
 
-    assert payload["remotes"][0]["room"] == "Den"
-    assert payload["remotes"][0]["kind"] == "apple_tv"
+    assert payload["remotes"][0]["kind"] == "generic"
+    assert "room" not in payload["remotes"][0]
 
     result, status = await api.async_execute_action(
         hass,
@@ -249,6 +244,7 @@ async def test_remote_room_and_device_type_can_be_configured(hass, entry):
             "action": "remote_command",
             "entity_id": "media_player.screen",
             "command": "back",
+            "device_type": "apple_tv",
         },
     )
     assert status == 200

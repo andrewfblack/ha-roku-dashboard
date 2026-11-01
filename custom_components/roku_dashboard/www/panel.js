@@ -8,7 +8,6 @@ configuration straight from the panel.
 const ASSET='/family-dashboard/';
 const BACKGROUNDS=[['fall','Fall'],['winter','Winter'],['spring','Spring'],['summer','Summer'],['uploaded','Uploaded image'],['custom_url','Custom image URL']];
 const LAYOUTS=[['home','Home (calendar, meals, climate)'],['compact','Compact (climate first)'],['meals_first','Meals first']];
-const REMOTE_TYPES=[['auto','Automatic'],['roku','Roku'],['apple_tv','Apple TV'],['lg','LG webOS TV'],['generic','Generic remote']];
 const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
 function loadHelpers(){
@@ -295,21 +294,6 @@ class FamilyDashboardPanel extends HTMLElement{
     return `<label class="fd-field"><span>${label}</span><select name="${name}"${multiple?' multiple size="5"':''}>${this._options(choices,value,multiple)}</select></label>`;
   }
 
-  _remoteConfigRows(options){
-    const esc=window.FamilyDashboard.esc;
-    const configured=Array.isArray(options.media_player_entities)?options.media_player_entities:[];
-    if(!configured.length)return '<p class="fd-help">Select media players in the integration options first. Each room name you enter is created automatically; use the same name to put multiple devices together.</p>';
-    const entities=this._entities('media_player');
-    return configured.map(entityId=>{
-      const entity=entities.find(item=>item.id===entityId);
-      const config=options.remote_device_config?.[entityId]||{};
-      const name=entity?entity.label:entityId;
-      const room=config.room||'Other';
-      const kind=config.kind||'auto';
-      return `<div class="fd-remote-device" data-remote-device="${esc(entityId)}"><b>${esc(name)}</b><div class="fd-grid"><label class="fd-field"><span>Room</span><input type="text" data-remote-room maxlength="40" value="${esc(room)}" placeholder="Living Room"></label><label class="fd-field"><span>Device type</span><select data-remote-kind>${this._options(REMOTE_TYPES.map(([id,label])=>({id,label})),kind,false)}</select></label></div></div>`;
-    }).join('');
-  }
-
   _toggle(name,label,checked){
     return `<label class="fd-toggle"><input type="checkbox" name="${name}"${checked?' checked':''}><span>${label}</span></label>`;
   }
@@ -354,10 +338,6 @@ class FamilyDashboardPanel extends HTMLElement{
         ${this._toggle('scenes_tab_enabled','Scenes',options.scenes_tab_enabled!==false)}
         ${this._toggle('climate_tab_enabled','Climate',options.climate_tab_enabled!==false)}
       </div>
-      <h3>Remote rooms and devices</h3>
-      <div class="fd-toggles">${this._toggle('remote_tab_enabled','Enable iOS Remote tab',options.remote_tab_enabled===true)}</div>
-      <p class="fd-help">Select media players in the integration options, then assign each one to a room and choose its remote type. Devices with the same room name appear together.</p>
-      <div id="remoteDeviceRows">${this._remoteConfigRows(options)}</div>
       <h3>Theme and colors</h3>
       <div class="fd-grid fd-theme-grid">
         ${this._color('theme_header_text','Header text',options.theme_header_text)}
@@ -408,8 +388,6 @@ class FamilyDashboardPanel extends HTMLElement{
       lights_tab_enabled:checked('lights_tab_enabled'),
       scenes_tab_enabled:checked('scenes_tab_enabled'),
       climate_tab_enabled:checked('climate_tab_enabled'),
-      remote_tab_enabled:checked('remote_tab_enabled'),
-      remote_device_config:Object.fromEntries([...form.querySelectorAll('[data-remote-device]')].map(row=>[row.dataset.remoteDevice,{room:row.querySelector('[data-remote-room]').value,kind:row.querySelector('[data-remote-kind]').value}])),
       theme_header_text:value('theme_header_text'),
       theme_item_header_text:value('theme_item_header_text'),
       theme_body_text:value('theme_body_text'),
